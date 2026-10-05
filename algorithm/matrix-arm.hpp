@@ -1,381 +1,489 @@
 /**
- ******************************************************************************
- * @file    matrix-arm.cpp/h
- * @brief   Matrix/vector calculation. 矩阵/向量运算
- * @author  Spoon Guan
- ******************************************************************************
- * Copyright (c) 2023 Team JiaoLong-SJTU
- * All rights reserved.
- ******************************************************************************
- */
+ * @file matrix-arm.hpp
+ * @author Serialist (ba3pt@qq.com)
+ * @brief 
+ * @version 0.1.0
+ * @date 2026-10-06
+ * 
+ * @copyright Copyright (c) Serialist 2026
+ * 
+*/
 
 #ifndef MATRIX_ARM_HPP
 #define MATRIX_ARM_HPP
 
-#include "robo-lib-config.h"
+#include "arm_math.h"
 
-#ifdef ARM_MATH
-    #include "arm_math.h"
+#include <cmath>
+#include <cstddef>
+#include <cstring>
+#include <initializer_list>
+#include <type_traits>
 
-namespace algebra {
+// Set to 1 to enable run-time bounds checking in operator() and operator[].
+// Leave at 0 in release builds on STM32.
+#ifndef MATRIX_ARM_BOUNDS_CHECK
+    #define MATRIX_ARM_BOUNDS_CHECK 0
+#endif
 
-template<int _rows, int _cols>
+#if MATRIX_ARM_BOUNDS_CHECK
+    #include <cassert>
+    #define MATRIX_ARM_CHECK(cond) assert(cond)
+#else
+    #define MATRIX_ARM_CHECK(cond) ((void)0)
+#endif
+
+namespace vlib {
+namespace algo {
+
+/**
+ * @brief Fixed-size matrix backed by CMSIS-DSP.
+ *
+ * Requirements:
+ *  - C++14 or later (constexpr constructors with loops).
+ *
+ * Design notes (STM32-friendly):
+ *  - Only the raw data is stored. The arm_matrix_instance_f32 descriptor is
+ *    built on demand via cmsis() using the official arm_mat_init_f32().
+ *    Each instance occupies exactly R*C*4 bytes of RAM, same as a plain
+ *    array.
+ *  - All static factories are constexpr, so constant matrices (e.g. eye())
+ *    live in flash (.rodata) instead of being constructed at startup.
+ *  - Copy/move are compiler-generated and correct, because the object does
+ *    not hold a self-referential pointer.
+ *  - reshape<R2,C2>() reinterprets the flat buffer with a new shape. Data
+ *    order (row-major) is preserved. Compile-time size check.
+ *  - Access is by either m[i][j] (array-style) or m(i, j) (Eigen-style).
+ *  - No heap, no dynamic allocation, no expression templates.
+ */
+template<std::size_t R, std::size_t C>
 class Matrixf_ARM {
+    static_assert(R > 0 && C > 0, "Matrixf_ARM: empty matrix");
+    static_assert(R <= 65535 && C <= 65535, "Matrixf_ARM: CMSIS uses uint16_t for dimensions");
+
 public:
-    /**
-     * @brief Constructor without input data
-     * @param
-     */
-    constexpr Matrixf_ARM(void): rows_(_rows), cols_(_cols) {
-        arm_mat_init_f32(&arm_mat_, _rows, _cols, this->data_);
+    // ======================================================================
+    // Construction
+    // ======================================================================
+
+    /// Default: zero-initialised. constexpr.
+    constexpr Matrixf_ARM() noexcept: data_ {} {}
+
+    /// From initializer list. Missing elements are zero, extra are ignored.
+    ///   Matrixf_ARM<3,3> m = {1,2,3, 4,5,6, 7,8,9};
+    ///   Matrixf_ARM<6,1> v = {0, 0, 0, 0, 0, 0};
+    constexpr Matrixf_ARM(std::initializer_list<float> il) noexcept: data_ {} {
+        const std::size_t n = (il.size() < R * C) ? il.size() : (R * C);
+        const float* p = il.begin();
+        for (std::size_t i = 0; i < n; ++i)
+            data_[i] = p[i];
     }
 
-    /**
-     * @brief Constructor with input data
-     * @param data    A 2-D array buffer that stores the data
-     */
-    constexpr Matrixf_ARM(float data[_rows * _cols]): Matrixf_ARM() {
-        memcpy(this->data_, data, _rows * _cols * sizeof(float));
-        arm_mat_init_f32(&arm_mat_, _rows, _cols, this->data_);
+    /// Copy from a fixed-size C array. Compile-time size check.
+    explicit Matrixf_ARM(const float (&arr)[R * C]) noexcept {
+        for (std::size_t i = 0; i < R * C; ++i)
+            data_[i] = arr[i];
     }
 
-    /**
-     * @brief      Copy Constructor
-     * @param mat  The copied matrix
-     */
-    constexpr Matrixf_ARM(const Matrixf_ARM<_rows, _cols>& mat): Matrixf_ARM() {
-        memcpy(this->data_, mat.data_, _rows * _cols * sizeof(float));
-        arm_mat_init_f32(&arm_mat_, _rows, _cols, this->data_);
+    /// Copy from a raw pointer. Caller must guarantee at least R*C floats.
+    explicit Matrixf_ARM(const float* p) noexcept {
+        for (std::size_t i = 0; i < R * C; ++i)
+            data_[i] = p[i];
     }
 
-    /**
-     * @brief Destructor
-     */
-    ~Matrixf_ARM(void) {}
+    // Copy/move: compiler-generated ones are correct here.
+    Matrixf_ARM(const Matrixf_ARM&) = default;
+    Matrixf_ARM(Matrixf_ARM&&) noexcept = default;
+    Matrixf_ARM& operator=(const Matrixf_ARM&) = default;
+    Matrixf_ARM& operator=(Matrixf_ARM&&) noexcept = default;
+    ~Matrixf_ARM() = default;
 
-    /**
-     * @brief returns the row size of the matrix
-     * @return _rows  The row size of the matrix
-     */
-    uint32_t rows(void) const {
-        return _rows;
+    // ======================================================================
+    // Static factories (all constexpr -> usable as flash constants)
+    // ======================================================================
+
+    static constexpr Matrixf_ARM zeros() noexcept {
+        return Matrixf_ARM {};
     }
 
-    /**
-     * @brief return the column size of the matrix
-     * @return _cols  The column size of the matrix
-     */
-    uint32_t cols(void) const {
-        return _cols;
+    static constexpr Matrixf_ARM ones() noexcept {
+        Matrixf_ARM m;
+        for (std::size_t i = 0; i < R * C; ++i)
+            m.data_[i] = 1.f;
+        return m;
     }
 
-    /**
-     * @brief Return the element of the matrix
-     * @param row  The row
-     */
-    float* operator[](const int& row) {
-        return &this->data_[row * _cols];
+    static constexpr Matrixf_ARM eye() noexcept {
+        Matrixf_ARM m;
+        constexpr std::size_t N = (R < C) ? R : C;
+        for (std::size_t i = 0; i < N; ++i)
+            m.data_[i * C + i] = 1.f;
+        return m;
     }
 
-    /**
-     * @brief Copy assignment of the matrix(row * size) instance
-     * @param mat   The copied prototype
-     * @return      *this matrix
-     */
-    Matrixf_ARM<_rows, _cols>& operator=(const Matrixf_ARM<_rows, _cols> mat) {
-        memcpy(this->data_, mat.data_, _rows * _cols * sizeof(float));
+    /// Diagonal matrix from a column vector of length R.
+    static constexpr Matrixf_ARM diag(const Matrixf_ARM<R, 1>& vec) noexcept {
+        Matrixf_ARM m;
+        constexpr std::size_t N = (R < C) ? R : C;
+        for (std::size_t i = 0; i < N; ++i)
+            m.data_[i * C + i] = vec.data_[i];
+        return m;
+    }
+
+    // ======================================================================
+    // Element access
+    //
+    // Two styles, both read/write:
+    //   m[i][j]   array-style
+    //   m(i, j)   Eigen/MATLAB-style, row-first
+    //
+    // For vectors only, the second index may be omitted:
+    //   Vec3f v;   v(i) == v(i, 0)
+    //   Matrixf_ARM<1,4> r;  r(i) == r(0, i)
+    //
+    // Bounds checking is enabled by defining MATRIX_ARM_BOUNDS_CHECK=1.
+    // ======================================================================
+
+    // --- m[i][j] -----------------------------------------------------------
+    float* operator[](std::size_t row) noexcept {
+        MATRIX_ARM_CHECK(row < R);
+        return data_ + row * C;
+    }
+    const float* operator[](std::size_t row) const noexcept {
+        MATRIX_ARM_CHECK(row < R);
+        return data_ + row * C;
+    }
+
+    // --- m(i, j) -----------------------------------------------------------
+    float& operator()(std::size_t row, std::size_t col) noexcept {
+        MATRIX_ARM_CHECK(row < R && col < C);
+        return data_[row * C + col];
+    }
+    const float& operator()(std::size_t row, std::size_t col) const noexcept {
+        MATRIX_ARM_CHECK(row < R && col < C);
+        return data_[row * C + col];
+    }
+
+    // --- m(i) : vector-only, single index ----------------------------------
+    // Enabled only when the matrix is a row vector or a column vector.
+    // For 1x1 both conditions hold, but there is still only one overload,
+    // so no ambiguity.
+    template<std::size_t CC = C, std::size_t RR = R>
+    typename std::enable_if<CC == 1 || RR == 1, float&>::type operator()(std::size_t i) noexcept {
+        MATRIX_ARM_CHECK(i < R * C);
+        return data_[i];
+    }
+    template<std::size_t CC = C, std::size_t RR = R>
+    typename std::enable_if<CC == 1 || RR == 1, const float&>::type
+    operator()(std::size_t i) const noexcept {
+        MATRIX_ARM_CHECK(i < R * C);
+        return data_[i];
+    }
+
+    // --- data / dimensions -------------------------------------------------
+    float* data() noexcept {
+        return data_;
+    }
+    const float* data() const noexcept {
+        return data_;
+    }
+
+    static constexpr std::size_t rows() noexcept {
+        return R;
+    }
+    static constexpr std::size_t cols() noexcept {
+        return C;
+    }
+    static constexpr std::size_t size() noexcept {
+        return R * C;
+    }
+
+    // ======================================================================
+    // Shape change (reshape)
+    //
+    // Reinterprets the flat row-major buffer with a new shape. The total
+    // number of elements must match, enforced at compile time.
+    //
+    // Example:
+    //     Matrixf_ARM<2,6> a = { ... 12 values ... };
+    //     auto b = a.reshape<6,2>();   // b(0,0)=a(0,0), b(0,1)=a(0,1), ...
+    //     auto c = a.flatten();        // Matrixf_ARM<12,1>
+    //
+    // This is NOT a transpose. Use trans() for that.
+    // ======================================================================
+
+    template<std::size_t R2, std::size_t C2>
+    Matrixf_ARM<R2, C2> reshape() const noexcept {
+        static_assert(R2 > 0 && C2 > 0, "reshape: empty matrix");
+        static_assert(R2 <= 65535 && C2 <= 65535, "reshape: CMSIS uses uint16_t");
+        static_assert(R2 * C2 == R * C, "reshape: total size must match");
+
+        Matrixf_ARM<R2, C2> res;
+        std::memcpy(res.data(), data_, R * C * sizeof(float));
+        return res;
+    }
+
+    /// In-place target version: avoids constructing a temporary in hot paths.
+    template<std::size_t R2, std::size_t C2>
+    void reshapeTo(Matrixf_ARM<R2, C2>& out) const noexcept {
+        static_assert(R2 > 0 && C2 > 0, "reshape: empty matrix");
+        static_assert(R2 <= 65535 && C2 <= 65535, "reshape: CMSIS uses uint16_t");
+        static_assert(R2 * C2 == R * C, "reshape: total size must match");
+
+        std::memcpy(out.data(), data_, R * C * sizeof(float));
+    }
+
+    /// Flatten to a column vector of size R*C.
+    Matrixf_ARM<R * C, 1> flatten() const noexcept {
+        return reshape<R * C, 1>();
+    }
+
+    /// Flatten to a row vector of size R*C.
+    Matrixf_ARM<1, R * C> flattenRow() const noexcept {
+        return reshape<1, R * C>();
+    }
+
+    // ======================================================================
+    // CMSIS bridge
+    //
+    // Builds a descriptor on the stack using the official CMSIS API. The
+    // 8-byte descriptor only lives for the duration of the call.
+    //
+    // DO NOT take the address of the returned value directly:
+    //     arm_mat_add_f32(&a.cmsis(), ...);   // WRONG
+    // Instead:
+    //     auto ma = a.cmsis();
+    //     arm_mat_add_f32(&ma, ...);          // correct
+    // ======================================================================
+
+    arm_matrix_instance_f32 cmsis() noexcept {
+        arm_matrix_instance_f32 m;
+        arm_mat_init_f32(&m, static_cast<uint16_t>(R), static_cast<uint16_t>(C), data_);
+        return m;
+    }
+
+    arm_matrix_instance_f32 cmsis() const noexcept {
+        arm_matrix_instance_f32 m;
+        // CMSIS declares pData as non-const float* but never writes through
+        // it for input arguments. Safe cast here.
+        arm_mat_init_f32(
+            &m,
+            static_cast<uint16_t>(R),
+            static_cast<uint16_t>(C),
+            const_cast<float*>(data_)
+        );
+        return m;
+    }
+
+    // ======================================================================
+    // Compound assignment
+    // ======================================================================
+
+    Matrixf_ARM& operator+=(const Matrixf_ARM& rhs) noexcept {
+        auto a = cmsis();
+        auto b = rhs.cmsis();
+        arm_mat_add_f32(&a, &b, &a);
         return *this;
     }
 
-    /**
-     * @brief      Additional operator of two matrices(row * size)
-     * @param mat  The matrix on the right hand side
-     * @note  This function returns itself as the result
-     * @return     The sum of two matrices
-     */
-    Matrixf_ARM<_rows, _cols>& operator+=(const Matrixf_ARM<_rows, _cols> mat) {
-        arm_mat_add_f32(&this->arm_mat_, &mat.arm_mat_, &this->arm_mat_);
+    Matrixf_ARM& operator-=(const Matrixf_ARM& rhs) noexcept {
+        auto a = cmsis();
+        auto b = rhs.cmsis();
+        arm_mat_sub_f32(&a, &b, &a);
         return *this;
     }
 
-    /**
-     * @brief Substraction operator of two matrices(row * size)
-     * @param mat The matrix on the left hand side
-     * @note  This function returns itself as the result
-     * @return    The difference of two matrices
-     */
-    Matrixf_ARM<_rows, _cols>& operator-=(const Matrixf_ARM<_rows, _cols> mat) {
-        arm_mat_sub_f32(&this->arm_mat_, &mat.arm_mat_, &this->arm_mat_);
+    Matrixf_ARM& operator*=(float s) noexcept {
+        auto a = cmsis();
+        arm_mat_scale_f32(&a, s, &a);
         return *this;
     }
 
-    /**
-     * @brief Scalar operator of the matrix and a scaling factor
-     * @param val The scaling factor
-     * @note  This function returns itself as the result
-     * @return    THe scaled matrix
-     */
-    Matrixf_ARM<_rows, _cols>& operator*=(const float& val) {
-        arm_mat_scale_f32(&this->arm_mat_, val, &this->arm_mat_);
+    Matrixf_ARM& operator/=(float s) noexcept {
+        auto a = cmsis();
+        arm_mat_scale_f32(&a, 1.f / s, &a);
         return *this;
     }
 
-    /**
-     * @brief Scalar operator of the matrix and a division factor
-     * @param val The division factor
-     * @note  This function returns itself as the result
-     * @retval    matrix / val
-     * @return    The scaled matrix
-     */
-    Matrixf_ARM<_rows, _cols>& operator/=(const float& val) {
-        arm_mat_scale_f32(&this->arm_mat_, 1.f / val, &this->arm_mat_);
-        return *this;
-    }
+    // ======================================================================
+    // Binary operators (return new matrices)
+    // ======================================================================
 
-    /**
-     * @brief Additonal operator
-     * @note This function doesn't return itself but instead a new matrix instance
-     * @param mat The matrix on the right hand side
-     * @return The sum of the additional matrix
-     */
-    Matrixf_ARM<_rows, _cols> operator+(const Matrixf_ARM<_rows, _cols>& mat) const {
-        Matrixf_ARM<_rows, _cols> res;
-        arm_mat_add_f32(&this->arm_mat_, &mat.arm_mat_, &res.arm_mat_);
+    Matrixf_ARM operator+(const Matrixf_ARM& rhs) const noexcept {
+        Matrixf_ARM res;
+        auto a = cmsis();
+        auto b = rhs.cmsis();
+        auto r = res.cmsis();
+        arm_mat_add_f32(&a, &b, &r);
         return res;
     }
 
-    /**
-     * @brief Substraction matrix
-     * @note This function does not return itself but instead a new matrix instance
-     * @param mat matrix on the right hand side
-     * @return The sum of the substracted matrix
-     */
-    Matrixf_ARM<_rows, _cols> operator-(const Matrixf_ARM<_rows, _cols>& mat) const {
-        Matrixf_ARM<_rows, _cols> res;
-        arm_mat_sub_f32(&this->arm_mat_, &mat.arm_mat_, &res.arm_mat_);
+    Matrixf_ARM operator-(const Matrixf_ARM& rhs) const noexcept {
+        Matrixf_ARM res;
+        auto a = cmsis();
+        auto b = rhs.cmsis();
+        auto r = res.cmsis();
+        arm_mat_sub_f32(&a, &b, &r);
         return res;
     }
 
-    /**
-     * @brief Scalar operator of the matrix and a scaling factor
-     * @param val The scaling factor
-     * @note      This function does not return itself
-     * @return    THe scaled matrix
-     */
-    Matrixf_ARM<_rows, _cols> operator*(const float& val) const {
-        Matrixf_ARM<_rows, _cols> res;
-        arm_mat_scale_f32(&this->arm_mat_, val, &res.arm_mat_);
+    Matrixf_ARM operator-() const noexcept {
+        Matrixf_ARM res;
+        auto a = cmsis();
+        auto r = res.cmsis();
+        arm_mat_scale_f32(&a, -1.f, &r);
         return res;
     }
 
-    /**
-     * @brief Scalar operator of the matrix and a scaling factor
-     * @param val The scaling factor on the left hand side
-     * @note      This function does not return itself
-     * @note      This time the scaling factor is on the left hand side
-     * @return    THe scaled matrix
-     */
-    friend Matrixf_ARM<_rows, _cols>
-    operator*(const float& val, const Matrixf_ARM<_rows, _cols>& mat) {
-        arm_status s;
-        Matrixf_ARM<_rows, _cols> res;
-        s = arm_mat_scale_f32(&mat.arm_mat_, val, &res.arm_mat_);
+    Matrixf_ARM operator*(float s) const noexcept {
+        Matrixf_ARM res;
+        auto a = cmsis();
+        auto r = res.cmsis();
+        arm_mat_scale_f32(&a, s, &r);
         return res;
     }
 
-    /**
-     * @brief Scalar operator of the matrix and a division factor
-     * @param val The division factor
-     * @note  This function returns itself as the result
-     * @retval    matrix / val
-     * @return    The scaled matrix
-     */
-    Matrixf_ARM<_rows, _cols> operator/(const float& val) const {
-        Matrixf_ARM<_rows, _cols> res;
-        arm_mat_scale_f32(&this->arm_mat_, 1.f / val, &res.arm_mat_);
+    friend Matrixf_ARM operator*(float s, const Matrixf_ARM& m) noexcept {
+        return m * s;
+    }
+
+    Matrixf_ARM operator/(float s) const noexcept {
+        Matrixf_ARM res;
+        auto a = cmsis();
+        auto r = res.cmsis();
+        arm_mat_scale_f32(&a, 1.f / s, &r);
         return res;
     }
 
-    /**
-     * @brief The matrix multiplication
-     * @param mat1 the matrix on the LHS
-     * @param mat2 the matrix on the RHS
-     * @return The multiplication result
-     */
-    template<int cols2>
-    friend Matrixf_ARM<_rows, cols2>
-    operator*(const Matrixf_ARM<_rows, _cols>& mat1, const Matrixf_ARM<_cols, cols2>& mat2) {
-        Matrixf_ARM<_rows, cols2> res;
-        arm_mat_mult_f32(&mat1.arm_mat_, &mat2.arm_mat_, &res.arm_mat_);
+    /// Matrix multiplication: (R x C) * (C x C2) -> (R x C2)
+    template<std::size_t C2>
+    Matrixf_ARM<R, C2> operator*(const Matrixf_ARM<C, C2>& rhs) const noexcept {
+        Matrixf_ARM<R, C2> res;
+        auto a = cmsis();
+        auto b = rhs.cmsis();
+        auto r = res.cmsis();
+        arm_mat_mult_f32(&a, &b, &r);
         return res;
     }
 
-    /**
-     * @brief Compare whether two matrices are identical
-     *
-     */
-    bool operator==(const Matrixf_ARM<_rows, _cols>& mat) const {
-        for (int i = 0; i < _rows * _cols; i++) {
-            if (this->data_[i] != mat.data_[i])
+    // ======================================================================
+    // Comparison
+    // ======================================================================
+
+    /// Bit-exact comparison. For float tolerance use isApprox().
+    bool operator==(const Matrixf_ARM& rhs) const noexcept {
+        for (std::size_t i = 0; i < R * C; ++i)
+            if (data_[i] != rhs.data_[i])
+                return false;
+        return true;
+    }
+    bool operator!=(const Matrixf_ARM& rhs) const noexcept {
+        return !(*this == rhs);
+    }
+
+    /// Element-wise approximate equality.
+    bool isApprox(const Matrixf_ARM& rhs, float eps = 1e-6f) const noexcept {
+        for (std::size_t i = 0; i < R * C; ++i) {
+            float d = data_[i] - rhs.data_[i];
+            if (d < 0.f)
+                d = -d;
+            if (d > eps)
                 return false;
         }
         return true;
     }
 
-    // Submatrix
-    template<int rows, int cols>
-    Matrixf_ARM<rows, cols> block(const int& start_row, const int& start_col) const {
-        Matrixf_ARM<rows, cols> res;
-        for (int row = start_row; row < start_row + rows; row++) {
-            memcpy(
-                (float*)res[0] + (row - start_row) * cols,
-                (float*)this->data_ + row * _cols + start_col,
-                cols * sizeof(float)
+    // ======================================================================
+    // Sub-matrix / row / column
+    // ======================================================================
+
+    /// Compile-time size check only; caller guarantees start_row/start_col
+    /// are in range.
+    template<std::size_t BR, std::size_t BC>
+    Matrixf_ARM<BR, BC> block(std::size_t start_row, std::size_t start_col) const noexcept {
+        static_assert(BR > 0 && BC > 0, "empty block");
+        static_assert(BR <= R && BC <= C, "block out of range");
+        Matrixf_ARM<BR, BC> res;
+        for (std::size_t r = 0; r < BR; ++r) {
+            std::memcpy(
+                res.data() + r * BC,
+                data_ + (start_row + r) * C + start_col,
+                BC * sizeof(float)
             );
         }
         return res;
     }
 
-    /**
-     * @brief Return the specific row of the matrix
-     * @param row The row index
-     * @retval The row vector presented in the matrix from
-     */
-    Matrixf_ARM<1, _cols> row(const int& row) const {
-        return block<1, _cols>(row, 0);
+    Matrixf_ARM<1, C> row(std::size_t r) const noexcept {
+        return block<1, C>(r, 0);
     }
 
-    /**
-     * @brief Return the specific row of the matrix
-     * @param col The column index
-     * @retval The column vector presented in the matrix from
-     */
-    Matrixf_ARM<_rows, 1> col(const int& col) const {
-        return block<_rows, 1>(0, col);
+    Matrixf_ARM<R, 1> col(std::size_t c) const noexcept {
+        return block<R, 1>(0, c);
     }
 
-    /**
-     * @brief Get the transpose of the matrix
-     * @param
-     * @retval the transposed matrix
-     */
-    Matrixf_ARM<_cols, _rows> trans(void) const {
-        Matrixf_ARM<_cols, _rows> res;
-        arm_mat_trans_f32(&arm_mat_, &res.arm_mat_);
-        return res;
-    }
-    // Trace
+    // ======================================================================
+    // Transpose / trace / norm / inverse
+    // ======================================================================
 
-    /**
-     * @brief Get the trace of the matrix
-     * @param
-     * @retval The trace of the matrix
-     */
-    float trace(void) const {
-        float res = 0;
-        for (int i = 0; i < fmin(_rows, _cols); i++) {
-            res += (*this)[i][i];
-        }
+    Matrixf_ARM<C, R> trans() const noexcept {
+        Matrixf_ARM<C, R> res;
+        auto a = cmsis();
+        auto r = res.cmsis();
+        arm_mat_trans_f32(&a, &r);
         return res;
     }
 
-    /**
-     * @brief Get the norm of the matrix
-     * @param
-     * @retval The norm of the matrix
-     */
-    float norm(void) const {
-        return sqrtf((this->trans() * *this)[0][0]);
+    float trace() const noexcept {
+        const std::size_t n = (R < C) ? R : C;
+        float s = 0.f;
+        for (std::size_t i = 0; i < n; ++i)
+            s += data_[i * C + i];
+        return s;
     }
 
-    /**
-     * @brief Get the inverse of the matrix
-     * @param
-     * @retval The inverse of the matrix
-     */
-    Matrixf_ARM<_cols, _rows> inv(void) const {
-        if (_cols != _rows)
-            return Matrixf_ARM<_cols, _rows>::zeros();
+    /// Frobenius norm. Computed directly, no temporaries.
+    float norm() const noexcept {
+        float s = 0.f;
+        for (std::size_t i = 0; i < R * C; ++i)
+            s += data_[i] * data_[i];
+        return sqrtf(s);
+    }
 
-        Matrixf_ARM<_cols, _rows> res;
-        arm_status status = arm_mat_inverse_f32(&this->arm_mat_, &res);
-
-        if (status == ARM_MATH_SINGULAR)
-            return Matrixf_ARM<_cols, _rows>::zeros();
-
+    /// Inverse. Only available for square matrices.
+    /// Returns zeros() if CMSIS reports a singular matrix.
+    template<std::size_t RR = R, std::size_t CC = C>
+    typename std::enable_if<RR == CC, Matrixf_ARM>::type inv() const noexcept {
+        Matrixf_ARM res;
+        auto a = cmsis();
+        auto r = res.cmsis();
+        arm_status st = arm_mat_inverse_f32(&a, &r);
+        if (st != ARM_MATH_SUCCESS)
+            return Matrixf_ARM::zeros();
         return res;
     }
 
-    /*==============================================================*/
-    // Static function
-    /**
-     * @brief Returns a _rows x _cols zero matrix
-     * @tparam _rows The row size
-     * @tparam _cols The column size
-     * @retval The zero matrix
-     */
-    static Matrixf_ARM<_rows, _cols> zeros(void) {
-        float data[_rows * _cols] = { 0 };
-        return Matrixf_ARM<_rows, _cols>(data);
-    }
-
-    /**
-     * @brief Returns a _rows x _cols one matrix
-     * @tparam _rows The row size
-     * @tparam _cols The column size
-     * @retval The one matrix
-     */
-    static Matrixf_ARM<_rows, _cols> ones(void) {
-        float data[_rows * _cols] = { 0 };
-        for (int i = 0; i < _rows * _cols; i++) {
-            data[i] = 1;
-        }
-        return Matrixf_ARM<_rows, _cols>(data);
-    }
-
-    /**
-     * @brief Returns a _rows * columns  matrix
-     * @tparam _rows The row size
-     * @tparam _cols The column size
-     * @retval The identity matrix
-     */
-    static Matrixf_ARM<_rows, _cols> eye(void) {
-        float data[_rows * _cols] = { 0 };
-        for (int i = 0; i < fmin(_rows, _cols); i++) {
-            data[i * _cols + i] = 1;
-        }
-        return Matrixf_ARM<_rows, _cols>(data);
-    }
-
-    /**
-     * @brief Returns a _rows x _cols diagonal matrix
-     * @tparam _rows The row size
-     * @tparam _cols The column size
-     * @param vec The diagnoal entries
-     * @retval The diagnoanl matrix
-     */
-    static Matrixf_ARM<_rows, _cols> diag(Matrixf_ARM<_rows, 1> vec) {
-        Matrixf_ARM<_rows, _cols> res = Matrixf_ARM<_rows, _cols>::zeros();
-        for (int i = 0; i < fmin(_rows, _cols); i++) {
-            res[i][i] = vec[i][0];
-        }
-        return res;
-    }
-
-public:
-    arm_matrix_instance_f32 arm_mat_; // The arm math instance
-
-protected:
-    // The size
-    int rows_, cols_;
-    // Data buffer
-    float data_[_rows * _cols];
+private:
+    float data_[R * C];
 };
 
-} // namespace algebra
+// Convenient aliases ------------------------------------------------------
 
-#else
-    #warning "Matrixf_ARM is not supported on this platform"
-#endif
+template<std::size_t R, std::size_t C>
+using Matf = Matrixf_ARM<R, C>;
 
-#endif
+template<std::size_t N>
+using Vecf = Matrixf_ARM<N, 1>;
+
+using Vec2f = Matrixf_ARM<2, 1>;
+using Vec3f = Matrixf_ARM<3, 1>;
+using Vec4f = Matrixf_ARM<4, 1>;
+
+using Mat2f = Matrixf_ARM<2, 2>;
+using Mat3f = Matrixf_ARM<3, 3>;
+using Mat4f = Matrixf_ARM<4, 4>;
+
+} // namespace algo
+} // namespace vlib
+
+#endif // MATRIX_ARM_HPP
