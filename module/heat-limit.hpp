@@ -12,16 +12,17 @@
 #ifndef HEAT_LIMIT_HPP
 #define HEAT_LIMIT_HPP
 
-#include "stdint.h"
 #include "math.h"
+#include "stdint.h"
 
 template<
-    int BULLET_HEAT = 10,       // 单发热量
-    int GEAR_RATIO = 36,        // 2006减速比
-    int SMALL_GEAR_RATIO_ = 25, // 大小齿轮比2：5 * 10
-    int SLOTS_ON_PLATE = 10,    // 拨盘弹丸数
-    int COOLING_SAFE_GAP = 21,  // 热量留余
+    int BULLET_HEAT                  = 10, // 单发热量
+    int GEAR_RATIO                   = 36, // 2006减速比
+    int SMALL_GEAR_RATIO_            = 25, // 大小齿轮比2：5 * 10
+    int SLOTS_ON_PLATE               = 10, // 拨盘弹丸数
+    int COOLING_SAFE_GAP             = 21, // 热量留余
     int SHOOT_MOTOR_DARTLE_SPEED_SET = 500>
+
 /// @brief 热量限制
 /// @param cooling_speed 冷却速度
 /// @param heat_limit 最大热量
@@ -42,7 +43,7 @@ float Heat_Limit(float cooling_speed, float heat_limit, float heat_per_bullet) {
         if (cooling_speed <= 0.0f || heat_per_bullet <= 0.0f) {
             shoot_freq = 0.0f;
         } else {
-            float m_left = current_heat - COOLING_SAFE_GAP;
+            float m_left           = current_heat - COOLING_SAFE_GAP;
             float target_fire_rate = 0.0f;
 
             if (m_left > 0)

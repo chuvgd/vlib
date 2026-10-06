@@ -67,14 +67,16 @@ public:
     // ======================================================================
 
     /// Default: zero-initialised. constexpr.
-    constexpr Matrixf_ARM() noexcept: data_ {} {}
+    constexpr Matrixf_ARM() noexcept:
+        data_ {} {}
 
     /// From initializer list. Missing elements are zero, extra are ignored.
     ///   Matrixf_ARM<3,3> m = {1,2,3, 4,5,6, 7,8,9};
     ///   Matrixf_ARM<6,1> v = {0, 0, 0, 0, 0, 0};
-    constexpr Matrixf_ARM(std::initializer_list<float> il) noexcept: data_ {} {
+    constexpr Matrixf_ARM(std::initializer_list<float> il) noexcept:
+        data_ {} {
         const std::size_t n = (il.size() < R * C) ? il.size() : (R * C);
-        const float* p = il.begin();
+        const float* p      = il.begin();
         for (std::size_t i = 0; i < n; ++i)
             data_[i] = p[i];
     }
@@ -92,11 +94,11 @@ public:
     }
 
     // Copy/move: compiler-generated ones are correct here.
-    Matrixf_ARM(const Matrixf_ARM&) = default;
-    Matrixf_ARM(Matrixf_ARM&&) noexcept = default;
-    Matrixf_ARM& operator=(const Matrixf_ARM&) = default;
+    Matrixf_ARM(const Matrixf_ARM&)                = default;
+    Matrixf_ARM(Matrixf_ARM&&) noexcept            = default;
+    Matrixf_ARM& operator=(const Matrixf_ARM&)     = default;
     Matrixf_ARM& operator=(Matrixf_ARM&&) noexcept = default;
-    ~Matrixf_ARM() = default;
+    ~Matrixf_ARM()                                 = default;
 
     // ======================================================================
     // Static factories (all constexpr -> usable as flash constants)
@@ -436,7 +438,7 @@ public:
 
     float trace() const noexcept {
         const std::size_t n = (R < C) ? R : C;
-        float s = 0.f;
+        float s             = 0.f;
         for (std::size_t i = 0; i < n; ++i)
             s += data_[i * C + i];
         return s;
@@ -455,8 +457,8 @@ public:
     template<std::size_t RR = R, std::size_t CC = C>
     typename std::enable_if<RR == CC, Matrixf_ARM>::type inv() const noexcept {
         Matrixf_ARM res;
-        auto a = cmsis();
-        auto r = res.cmsis();
+        auto a        = cmsis();
+        auto r        = res.cmsis();
         arm_status st = arm_mat_inverse_f32(&a, &r);
         if (st != ARM_MATH_SUCCESS)
             return Matrixf_ARM::zeros();

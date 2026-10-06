@@ -9,7 +9,7 @@
  *
  */
 
-#include "utils.h"
+#include "math.h"
 
 // 快速开方（牛顿迭代法）
 float SSqrt(float x) {
@@ -98,7 +98,7 @@ long long FPowMod(long long a, long long b, long long p) {
 }
 
 /// @brief 快速平方根倒数
-float FiSqrt(float x) {
+float FinvSqrt(float x) {
     float halfnum = 0.5f * x;
     float y = x;
     long i = *(long*)&y;
