@@ -100,22 +100,22 @@ long long FPowMod(long long a, long long b, long long p) {
 /// @brief 快速平方根倒数
 float FinvSqrt(float x) {
     float halfnum = 0.5f * x;
-    float y = x;
-    long i = *(long*)&y;
-    i = 0x5f375a86 - (i >> 1); // 此处缺 what the fuck（雾）
-    y = *(float*)&i;
-    y = y * (1.5f - (halfnum * y * y));
+    float y       = x;
+    long  i       = *(long*)&y;
+    i             = 0x5f375a86 - (i >> 1); // 此处缺 what the fuck（雾）
+    y             = *(float*)&i;
+    y             = y * (1.5f - (halfnum * y * y));
     return y;
 }
 
 /// @brief 快速平方根
 float FSqrtf(float x) {
     float halfnum = 0.5f * x;
-    float y = x;
-    long i = *(long*)&y;
-    i = 0x5f375a86 - (i >> 1);
-    y = *(float*)&i;
-    y = y * (1.5f - (halfnum * y * y));
+    float y       = x;
+    long  i       = *(long*)&y;
+    i             = 0x5f375a86 - (i >> 1);
+    y             = *(float*)&i;
+    y             = y * (1.5f - (halfnum * y * y));
     return 1 / y;
 }
 
@@ -208,13 +208,13 @@ float Deadzonef(float value, float point, float deadzone) {
 }
 
 float Bit2Float(int x_int, float x_min, float x_max, int Bits) {
-    float span = x_max - x_min;
+    float span   = x_max - x_min;
     float offset = x_min;
     return ((float)x_int) * span / ((float)((1 << Bits) - 1)) + offset;
 }
 
 int Float2Bit(float x, float x_min, float x_max, int bits) {
-    float span = x_max - x_min;
+    float span   = x_max - x_min;
     float offset = x_min;
     return (int)((x - offset) * ((float)((1 << bits) - 1)) / span);
 }

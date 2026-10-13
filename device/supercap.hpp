@@ -11,8 +11,8 @@
  * P_referee = P_chassis + P_cap
  */
 
-#ifndef SUPERCAP_H
-#define SUPERCAP_H
+#ifndef VLIB_DEVICE_SUPERCAP_HPP
+#define VLIB_DEVICE_SUPERCAP_HPP
 
 #include "array"
 #include "stdbool.h"
@@ -27,7 +27,7 @@ public:
     constexpr static uint8_t SUPERPOWER_CMD_ID = 0x210;
 
     std::array<uint8_t, 8> buf; // 发送缓存
-    uint16_t cnt;               // 离线看门狗
+    uint16_t               cnt; // 离线看门狗
 
     float output;       // 底盘功率
     float cappower_fdb; // 电容目标功率
@@ -36,22 +36,23 @@ public:
     float cappower_cmd; // 电容目标功率
 
     SuperCap(void) = default;
-    SuperCap(void): cnt(0) {}
+    SuperCap(void):
+        cnt(0) {}
 
     /// @brief 超电反馈解码
     /// @param buf
     /// @param data
     void Feedback_Decode(uint8_t* buf) {
-        uint16_t output_ = (buf[1] << 8 | buf[0]);
+        uint16_t output_       = (buf[1] << 8 | buf[0]);
         uint16_t cappower_fdb_ = (buf[3] << 8 | buf[2]);
-        uint16_t source = (buf[5] << 8 | buf[4]);
-        uint16_t capvoltage_ = (buf[7] << 8 | buf[6]);
+        uint16_t source        = (buf[5] << 8 | buf[4]);
+        uint16_t capvoltage_   = (buf[7] << 8 | buf[6]);
 
-        output = (output_ - 0x7FFF) / 10.0f;
+        output       = (output_ - 0x7FFF) / 10.0f;
         cappower_fdb = (cappower_fdb_ - 0x7FFF) / 10.0f;
-        source = (source - 0x7FFF) / 10.0f;
-        capvoltage = (capvoltage_) / 100.0f;
-        cnt = 50;
+        source       = (source - 0x7FFF) / 10.0f;
+        capvoltage   = (capvoltage_) / 100.0f;
+        cnt          = 50;
     }
 
     /// @brief 超电控制编码

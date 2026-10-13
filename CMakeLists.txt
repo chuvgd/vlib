@@ -6,8 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 创建库（STATIC 静态库 / SHARED 动态库，不写则由 BUILD_SHARED_LIBS 控制）
-add_library(vlib STATIC
-)
+add_library(vlib STATIC)
 
 # 给目标起一个别名，方便本仓库内部其他 target 使用
 # add_library(vlib ALIAS vlib)

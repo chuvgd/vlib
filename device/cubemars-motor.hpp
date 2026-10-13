@@ -9,8 +9,8 @@
  * 
 */
 
-#ifndef CUBEMARS_MOTOR_HPP
-#define CUBEMARS_MOTOR_HPP
+#ifndef VLIB_DEVICE_CUBEMARS_MOTOR_HPP
+#define VLIB_DEVICE_CUBEMARS_MOTOR_HPP
 
 #include "array"
 #include "cstdint"
@@ -26,14 +26,14 @@ public:
     };
 
     const Param& param;
-    const Mode mode;
+    const Mode   mode;
 
     uint8_t id {};
-    float position {};
-    float velocity {};
-    float torque {};
-    float temp {};
-    float errorcode {};
+    float   position {};
+    float   velocity {};
+    float   torque {};
+    float   temp {};
+    float   errorcode {};
     uint8_t cnt {}; // 掉线看门狗
 
     AK_Motor(const AK_Motor::Param& param_, const Mode mode_):
@@ -42,15 +42,15 @@ public:
         cnt(0) {}
 
     void Enable(void) { // 据说使能命令最好不要重复发送...?
-        std::array<uint8_t, 8> buf { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC };
+        std::array<uint8_t, 8> buf {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC};
     }
 
     void Disable(void) {
-        std::array<uint8_t, 8> buf { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD };
+        std::array<uint8_t, 8> buf {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD};
     }
 
     void Setorigin(void) { // 但这个似乎断电不保存...要小心...
-        std::array<uint8_t, 8> buf { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE };
+        std::array<uint8_t, 8> buf {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE};
     }
 
     std::array<uint8_t, 8> Control_Encode(float pos, float vel, float kp, float kd, float torque) {
@@ -143,8 +143,7 @@ public:
     }
 };
 
-constexpr AK_Motor::Param AK10_9_PARAM = { 12.5f, 50.0f, 0, 500.0f, 0, 5.0f, 65.0f },
-                          AK60_6_PARAM = { 12.5f, 45.0f, 0, 500.0f, 0, 5.0f, 15.0f };
+constexpr AK_Motor::Param AK10_9_PARAM = {12.5f, 50.0f, 0, 500.0f, 0, 5.0f, 65.0f}, AK60_6_PARAM = {12.5f, 45.0f, 0, 500.0f, 0, 5.0f, 15.0f};
 
 } // namespace comm
 } // namespace vlib

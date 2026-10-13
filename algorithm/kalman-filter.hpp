@@ -9,29 +9,29 @@
  * 
 */
 
-#ifndef KALMAN_FILTER_HPP
-#define KALMAN_FILTER_HPP
+#ifndef VLIB_ALGO_KALMAN_FILTER_HPP
+#define VLIB_ALGO_KALMAN_FILTER_HPP
 
 #include <cstddef>
 
-#include "algorithm/linear-algebra.hpp"
+#include "algorithm/matrix-arm.hpp"
 
-namespace observer {
+namespace vlib {
 
-using algebra::Matrix;
-using algebra::Vector;
+using ARM::Matrix;
+using ARM::Vector;
 using std::size_t;
 
 template<typename T, size_t MEASURE_SIZE, size_t STATE_SIZE>
 class Kalman_Filter {
 private:
     // 状态向量
-    Vector<T, STATE_SIZE> x_prior;     // 先验状态
-    Vector<T, STATE_SIZE> x_posterior; // 后验状态
-    Vector<T, MEASURE_SIZE> z;         // 观测值
+    Vector<T, STATE_SIZE>   x_prior;     // 先验状态
+    Vector<T, STATE_SIZE>   x_posterior; // 后验状态
+    Vector<T, MEASURE_SIZE> z;           // 观测值
 
     // 系统矩阵
-    Matrix<T, STATE_SIZE, STATE_SIZE> F;   // 状态转移
+    Matrix<T, STATE_SIZE, STATE_SIZE>   F; // 状态转移
     Matrix<T, MEASURE_SIZE, STATE_SIZE> H; // 观测映射
 
     // 卡尔曼增益
@@ -42,17 +42,17 @@ private:
     Matrix<T, STATE_SIZE, STATE_SIZE> P_posterior; // 后验协方差
 
     // 噪声协方差（修正维度）
-    Matrix<T, STATE_SIZE, STATE_SIZE> Q;     // 过程噪声
+    Matrix<T, STATE_SIZE, STATE_SIZE>     Q; // 过程噪声
     Matrix<T, MEASURE_SIZE, MEASURE_SIZE> R; // 观测噪声
 
 public:
     Kalman_Filter(
-        const Matrix<T, STATE_SIZE, STATE_SIZE>& F_,
-        const Matrix<T, MEASURE_SIZE, STATE_SIZE>& H_,
-        const Matrix<T, STATE_SIZE, STATE_SIZE>& Q_,
+        const Matrix<T, STATE_SIZE, STATE_SIZE>&     F_,
+        const Matrix<T, MEASURE_SIZE, STATE_SIZE>&   H_,
+        const Matrix<T, STATE_SIZE, STATE_SIZE>&     Q_,
         const Matrix<T, MEASURE_SIZE, MEASURE_SIZE>& R_,
-        const Vector<T, STATE_SIZE>& x0,
-        const Matrix<T, STATE_SIZE, STATE_SIZE>& P0
+        const Vector<T, STATE_SIZE>&                 x0,
+        const Matrix<T, STATE_SIZE, STATE_SIZE>&     P0
     ):
         x_posterior(x0),
         F(F_),
@@ -88,7 +88,7 @@ public:
         // 3. 卡尔曼增益
         /// @todo the inverse operation need to optimize, and must check singular matrix
         auto H_T = H.transpose();
-        K = P_prior * H_T * (H * P_prior * H_T + R).inverse();
+        K        = P_prior * H_T * (H * P_prior * H_T + R).inverse();
 
         // 4. 后验状态
         x_posterior = x_prior + K * (z - H * x_prior);
@@ -105,6 +105,6 @@ public:
     }
 };
 
-} // namespace observer
+} // namespace vlib
 
 #endif

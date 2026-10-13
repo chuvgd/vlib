@@ -1,5 +1,5 @@
 /**
- * @file utils.h
+ * @file vmacro.h
  * @author Serialist (ba3pt@chd.edu.cn)
  * @brief
  * @version 0.1.0
@@ -9,8 +9,8 @@
  *
  */
 
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef VLIB_UTILS_VMACRO_H
+#define VLIB_UTILS_VMACRO_H
 
 #ifdef __cplusplus
 extern "C" {

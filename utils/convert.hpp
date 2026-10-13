@@ -9,16 +9,23 @@
  * 
 */
 
-#ifndef CONVERT_HPP
-#define CONVERT_HPP
+#ifndef VLIB_UTILS_CONVERT_HPP
+#define VLIB_UTILS_CONVERT_HPP
 
-namespace rb2 {
-namespace convert {
+namespace vlib {
 
-float Bit2Float(int x_int, float x_min, float x_max, int Bits);
-int Float2Bit(float x, float x_min, float x_max, int bits);
+float Bit2Float(int x_int, float x_min, float x_max, int Bits) {
+    float span   = x_max - x_min;
+    float offset = x_min;
+    return ((float)x_int) * span / ((float)((1 << Bits) - 1)) + offset;
+}
 
-} // namespace convert
-} // namespace rb2
+int Float2Bit(float x, float x_min, float x_max, int bits) {
+    float span   = x_max - x_min;
+    float offset = x_min;
+    return (int)((x - offset) * ((float)((1 << bits) - 1)) / span);
+}
+
+} // namespace vlib
 
 #endif

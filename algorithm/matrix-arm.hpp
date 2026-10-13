@@ -9,8 +9,8 @@
  * 
 */
 
-#ifndef MATRIX_ARM_HPP
-#define MATRIX_ARM_HPP
+#ifndef VLIB_ALGO_MATRIX_ARM_HPP
+#define VLIB_ALGO_MATRIX_ARM_HPP
 
 #include "arm_math.h"
 
@@ -34,7 +34,7 @@
 #endif
 
 namespace vlib {
-namespace algo {
+namespace ARM {
 
 /**
  * @brief Fixed-size matrix backed by CMSIS-DSP.
@@ -57,9 +57,9 @@ namespace algo {
  *  - No heap, no dynamic allocation, no expression templates.
  */
 template<std::size_t R, std::size_t C>
-class Matrixf_ARM {
-    static_assert(R > 0 && C > 0, "Matrixf_ARM: empty matrix");
-    static_assert(R <= 65535 && C <= 65535, "Matrixf_ARM: CMSIS uses uint16_t for dimensions");
+class Matrix {
+    static_assert(R > 0 && C > 0, "Matrix: empty matrix");
+    static_assert(R <= 65535 && C <= 65535, "Matrix: CMSIS uses uint16_t for dimensions");
 
 public:
     // ======================================================================
@@ -67,56 +67,56 @@ public:
     // ======================================================================
 
     /// Default: zero-initialised. constexpr.
-    constexpr Matrixf_ARM() noexcept:
+    constexpr Matrix() noexcept:
         data_ {} {}
 
     /// From initializer list. Missing elements are zero, extra are ignored.
-    ///   Matrixf_ARM<3,3> m = {1,2,3, 4,5,6, 7,8,9};
-    ///   Matrixf_ARM<6,1> v = {0, 0, 0, 0, 0, 0};
-    constexpr Matrixf_ARM(std::initializer_list<float> il) noexcept:
+    ///   Matrix<3,3> m = {1,2,3, 4,5,6, 7,8,9};
+    ///   Matrix<6,1> v = {0, 0, 0, 0, 0, 0};
+    constexpr Matrix(std::initializer_list<float> il) noexcept:
         data_ {} {
         const std::size_t n = (il.size() < R * C) ? il.size() : (R * C);
-        const float* p      = il.begin();
+        const float*      p = il.begin();
         for (std::size_t i = 0; i < n; ++i)
             data_[i] = p[i];
     }
 
     /// Copy from a fixed-size C array. Compile-time size check.
-    explicit Matrixf_ARM(const float (&arr)[R * C]) noexcept {
+    explicit Matrix(const float (&arr)[R * C]) noexcept {
         for (std::size_t i = 0; i < R * C; ++i)
             data_[i] = arr[i];
     }
 
     /// Copy from a raw pointer. Caller must guarantee at least R*C floats.
-    explicit Matrixf_ARM(const float* p) noexcept {
+    explicit Matrix(const float* p) noexcept {
         for (std::size_t i = 0; i < R * C; ++i)
             data_[i] = p[i];
     }
 
     // Copy/move: compiler-generated ones are correct here.
-    Matrixf_ARM(const Matrixf_ARM&)                = default;
-    Matrixf_ARM(Matrixf_ARM&&) noexcept            = default;
-    Matrixf_ARM& operator=(const Matrixf_ARM&)     = default;
-    Matrixf_ARM& operator=(Matrixf_ARM&&) noexcept = default;
-    ~Matrixf_ARM()                                 = default;
+    Matrix(const Matrix&)                = default;
+    Matrix(Matrix&&) noexcept            = default;
+    Matrix& operator=(const Matrix&)     = default;
+    Matrix& operator=(Matrix&&) noexcept = default;
+    ~Matrix()                            = default;
 
     // ======================================================================
     // Static factories (all constexpr -> usable as flash constants)
     // ======================================================================
 
-    static constexpr Matrixf_ARM zeros() noexcept {
-        return Matrixf_ARM {};
+    static constexpr Matrix zeros() noexcept {
+        return Matrix {};
     }
 
-    static constexpr Matrixf_ARM ones() noexcept {
-        Matrixf_ARM m;
+    static constexpr Matrix ones() noexcept {
+        Matrix m;
         for (std::size_t i = 0; i < R * C; ++i)
             m.data_[i] = 1.f;
         return m;
     }
 
-    static constexpr Matrixf_ARM eye() noexcept {
-        Matrixf_ARM m;
+    static constexpr Matrix eye() noexcept {
+        Matrix                m;
         constexpr std::size_t N = (R < C) ? R : C;
         for (std::size_t i = 0; i < N; ++i)
             m.data_[i * C + i] = 1.f;
@@ -124,8 +124,8 @@ public:
     }
 
     /// Diagonal matrix from a column vector of length R.
-    static constexpr Matrixf_ARM diag(const Matrixf_ARM<R, 1>& vec) noexcept {
-        Matrixf_ARM m;
+    static constexpr Matrix diag(const Matrix<R, 1>& vec) noexcept {
+        Matrix                m;
         constexpr std::size_t N = (R < C) ? R : C;
         for (std::size_t i = 0; i < N; ++i)
             m.data_[i * C + i] = vec.data_[i];
@@ -141,7 +141,7 @@ public:
     //
     // For vectors only, the second index may be omitted:
     //   Vec3f v;   v(i) == v(i, 0)
-    //   Matrixf_ARM<1,4> r;  r(i) == r(0, i)
+    //   Matrix<1,4> r;  r(i) == r(0, i)
     //
     // Bounds checking is enabled by defining MATRIX_ARM_BOUNDS_CHECK=1.
     // ======================================================================
@@ -176,8 +176,7 @@ public:
         return data_[i];
     }
     template<std::size_t CC = C, std::size_t RR = R>
-    typename std::enable_if<CC == 1 || RR == 1, const float&>::type
-    operator()(std::size_t i) const noexcept {
+    typename std::enable_if<CC == 1 || RR == 1, const float&>::type operator()(std::size_t i) const noexcept {
         MATRIX_ARM_CHECK(i < R * C);
         return data_[i];
     }
@@ -207,27 +206,27 @@ public:
     // number of elements must match, enforced at compile time.
     //
     // Example:
-    //     Matrixf_ARM<2,6> a = { ... 12 values ... };
+    //     Matrix<2,6> a = { ... 12 values ... };
     //     auto b = a.reshape<6,2>();   // b(0,0)=a(0,0), b(0,1)=a(0,1), ...
-    //     auto c = a.flatten();        // Matrixf_ARM<12,1>
+    //     auto c = a.flatten();        // Matrix<12,1>
     //
     // This is NOT a transpose. Use trans() for that.
     // ======================================================================
 
     template<std::size_t R2, std::size_t C2>
-    Matrixf_ARM<R2, C2> reshape() const noexcept {
+    Matrix<R2, C2> reshape() const noexcept {
         static_assert(R2 > 0 && C2 > 0, "reshape: empty matrix");
         static_assert(R2 <= 65535 && C2 <= 65535, "reshape: CMSIS uses uint16_t");
         static_assert(R2 * C2 == R * C, "reshape: total size must match");
 
-        Matrixf_ARM<R2, C2> res;
+        Matrix<R2, C2> res;
         std::memcpy(res.data(), data_, R * C * sizeof(float));
         return res;
     }
 
     /// In-place target version: avoids constructing a temporary in hot paths.
     template<std::size_t R2, std::size_t C2>
-    void reshapeTo(Matrixf_ARM<R2, C2>& out) const noexcept {
+    void reshapeTo(Matrix<R2, C2>& out) const noexcept {
         static_assert(R2 > 0 && C2 > 0, "reshape: empty matrix");
         static_assert(R2 <= 65535 && C2 <= 65535, "reshape: CMSIS uses uint16_t");
         static_assert(R2 * C2 == R * C, "reshape: total size must match");
@@ -236,12 +235,12 @@ public:
     }
 
     /// Flatten to a column vector of size R*C.
-    Matrixf_ARM<R * C, 1> flatten() const noexcept {
+    Matrix<R * C, 1> flatten() const noexcept {
         return reshape<R * C, 1>();
     }
 
     /// Flatten to a row vector of size R*C.
-    Matrixf_ARM<1, R * C> flattenRow() const noexcept {
+    Matrix<1, R * C> flattenRow() const noexcept {
         return reshape<1, R * C>();
     }
 
@@ -268,12 +267,7 @@ public:
         arm_matrix_instance_f32 m;
         // CMSIS declares pData as non-const float* but never writes through
         // it for input arguments. Safe cast here.
-        arm_mat_init_f32(
-            &m,
-            static_cast<uint16_t>(R),
-            static_cast<uint16_t>(C),
-            const_cast<float*>(data_)
-        );
+        arm_mat_init_f32(&m, static_cast<uint16_t>(R), static_cast<uint16_t>(C), const_cast<float*>(data_));
         return m;
     }
 
@@ -281,27 +275,27 @@ public:
     // Compound assignment
     // ======================================================================
 
-    Matrixf_ARM& operator+=(const Matrixf_ARM& rhs) noexcept {
+    Matrix& operator+=(const Matrix& rhs) noexcept {
         auto a = cmsis();
         auto b = rhs.cmsis();
         arm_mat_add_f32(&a, &b, &a);
         return *this;
     }
 
-    Matrixf_ARM& operator-=(const Matrixf_ARM& rhs) noexcept {
+    Matrix& operator-=(const Matrix& rhs) noexcept {
         auto a = cmsis();
         auto b = rhs.cmsis();
         arm_mat_sub_f32(&a, &b, &a);
         return *this;
     }
 
-    Matrixf_ARM& operator*=(float s) noexcept {
+    Matrix& operator*=(float s) noexcept {
         auto a = cmsis();
         arm_mat_scale_f32(&a, s, &a);
         return *this;
     }
 
-    Matrixf_ARM& operator/=(float s) noexcept {
+    Matrix& operator/=(float s) noexcept {
         auto a = cmsis();
         arm_mat_scale_f32(&a, 1.f / s, &a);
         return *this;
@@ -311,59 +305,59 @@ public:
     // Binary operators (return new matrices)
     // ======================================================================
 
-    Matrixf_ARM operator+(const Matrixf_ARM& rhs) const noexcept {
-        Matrixf_ARM res;
-        auto a = cmsis();
-        auto b = rhs.cmsis();
-        auto r = res.cmsis();
+    Matrix operator+(const Matrix& rhs) const noexcept {
+        Matrix res;
+        auto   a = cmsis();
+        auto   b = rhs.cmsis();
+        auto   r = res.cmsis();
         arm_mat_add_f32(&a, &b, &r);
         return res;
     }
 
-    Matrixf_ARM operator-(const Matrixf_ARM& rhs) const noexcept {
-        Matrixf_ARM res;
-        auto a = cmsis();
-        auto b = rhs.cmsis();
-        auto r = res.cmsis();
+    Matrix operator-(const Matrix& rhs) const noexcept {
+        Matrix res;
+        auto   a = cmsis();
+        auto   b = rhs.cmsis();
+        auto   r = res.cmsis();
         arm_mat_sub_f32(&a, &b, &r);
         return res;
     }
 
-    Matrixf_ARM operator-() const noexcept {
-        Matrixf_ARM res;
-        auto a = cmsis();
-        auto r = res.cmsis();
+    Matrix operator-() const noexcept {
+        Matrix res;
+        auto   a = cmsis();
+        auto   r = res.cmsis();
         arm_mat_scale_f32(&a, -1.f, &r);
         return res;
     }
 
-    Matrixf_ARM operator*(float s) const noexcept {
-        Matrixf_ARM res;
-        auto a = cmsis();
-        auto r = res.cmsis();
+    Matrix operator*(float s) const noexcept {
+        Matrix res;
+        auto   a = cmsis();
+        auto   r = res.cmsis();
         arm_mat_scale_f32(&a, s, &r);
         return res;
     }
 
-    friend Matrixf_ARM operator*(float s, const Matrixf_ARM& m) noexcept {
+    friend Matrix operator*(float s, const Matrix& m) noexcept {
         return m * s;
     }
 
-    Matrixf_ARM operator/(float s) const noexcept {
-        Matrixf_ARM res;
-        auto a = cmsis();
-        auto r = res.cmsis();
+    Matrix operator/(float s) const noexcept {
+        Matrix res;
+        auto   a = cmsis();
+        auto   r = res.cmsis();
         arm_mat_scale_f32(&a, 1.f / s, &r);
         return res;
     }
 
     /// Matrix multiplication: (R x C) * (C x C2) -> (R x C2)
     template<std::size_t C2>
-    Matrixf_ARM<R, C2> operator*(const Matrixf_ARM<C, C2>& rhs) const noexcept {
-        Matrixf_ARM<R, C2> res;
-        auto a = cmsis();
-        auto b = rhs.cmsis();
-        auto r = res.cmsis();
+    Matrix<R, C2> operator*(const Matrix<C, C2>& rhs) const noexcept {
+        Matrix<R, C2> res;
+        auto          a = cmsis();
+        auto          b = rhs.cmsis();
+        auto          r = res.cmsis();
         arm_mat_mult_f32(&a, &b, &r);
         return res;
     }
@@ -373,18 +367,18 @@ public:
     // ======================================================================
 
     /// Bit-exact comparison. For float tolerance use isApprox().
-    bool operator==(const Matrixf_ARM& rhs) const noexcept {
+    bool operator==(const Matrix& rhs) const noexcept {
         for (std::size_t i = 0; i < R * C; ++i)
             if (data_[i] != rhs.data_[i])
                 return false;
         return true;
     }
-    bool operator!=(const Matrixf_ARM& rhs) const noexcept {
+    bool operator!=(const Matrix& rhs) const noexcept {
         return !(*this == rhs);
     }
 
     /// Element-wise approximate equality.
-    bool isApprox(const Matrixf_ARM& rhs, float eps = 1e-6f) const noexcept {
+    bool isApprox(const Matrix& rhs, float eps = 1e-6f) const noexcept {
         for (std::size_t i = 0; i < R * C; ++i) {
             float d = data_[i] - rhs.data_[i];
             if (d < 0.f)
@@ -402,25 +396,21 @@ public:
     /// Compile-time size check only; caller guarantees start_row/start_col
     /// are in range.
     template<std::size_t BR, std::size_t BC>
-    Matrixf_ARM<BR, BC> block(std::size_t start_row, std::size_t start_col) const noexcept {
+    Matrix<BR, BC> block(std::size_t start_row, std::size_t start_col) const noexcept {
         static_assert(BR > 0 && BC > 0, "empty block");
         static_assert(BR <= R && BC <= C, "block out of range");
-        Matrixf_ARM<BR, BC> res;
+        Matrix<BR, BC> res;
         for (std::size_t r = 0; r < BR; ++r) {
-            std::memcpy(
-                res.data() + r * BC,
-                data_ + (start_row + r) * C + start_col,
-                BC * sizeof(float)
-            );
+            std::memcpy(res.data() + r * BC, data_ + (start_row + r) * C + start_col, BC * sizeof(float));
         }
         return res;
     }
 
-    Matrixf_ARM<1, C> row(std::size_t r) const noexcept {
+    Matrix<1, C> row(std::size_t r) const noexcept {
         return block<1, C>(r, 0);
     }
 
-    Matrixf_ARM<R, 1> col(std::size_t c) const noexcept {
+    Matrix<R, 1> col(std::size_t c) const noexcept {
         return block<R, 1>(0, c);
     }
 
@@ -428,17 +418,17 @@ public:
     // Transpose / trace / norm / inverse
     // ======================================================================
 
-    Matrixf_ARM<C, R> trans() const noexcept {
-        Matrixf_ARM<C, R> res;
-        auto a = cmsis();
-        auto r = res.cmsis();
+    Matrix<C, R> trans() const noexcept {
+        Matrix<C, R> res;
+        auto         a = cmsis();
+        auto         r = res.cmsis();
         arm_mat_trans_f32(&a, &r);
         return res;
     }
 
     float trace() const noexcept {
         const std::size_t n = (R < C) ? R : C;
-        float s             = 0.f;
+        float             s = 0.f;
         for (std::size_t i = 0; i < n; ++i)
             s += data_[i * C + i];
         return s;
@@ -455,37 +445,34 @@ public:
     /// Inverse. Only available for square matrices.
     /// Returns zeros() if CMSIS reports a singular matrix.
     template<std::size_t RR = R, std::size_t CC = C>
-    typename std::enable_if<RR == CC, Matrixf_ARM>::type inv() const noexcept {
-        Matrixf_ARM res;
-        auto a        = cmsis();
-        auto r        = res.cmsis();
+    typename std::enable_if<RR == CC, Matrix>::type inv() const noexcept {
+        Matrix     res;
+        auto       a  = cmsis();
+        auto       r  = res.cmsis();
         arm_status st = arm_mat_inverse_f32(&a, &r);
         if (st != ARM_MATH_SUCCESS)
-            return Matrixf_ARM::zeros();
+            return Matrix::zeros();
         return res;
     }
 
 private:
-    float data_[R * C];
+    std::array<float, R * C> data_;
 };
 
 // Convenient aliases ------------------------------------------------------
 
-template<std::size_t R, std::size_t C>
-using Matf = Matrixf_ARM<R, C>;
-
 template<std::size_t N>
-using Vecf = Matrixf_ARM<N, 1>;
+using Vector = Matrix<N, 1>;
 
-using Vec2f = Matrixf_ARM<2, 1>;
-using Vec3f = Matrixf_ARM<3, 1>;
-using Vec4f = Matrixf_ARM<4, 1>;
+using Vec2 = Vector<2>;
+using Vec3 = Vector<3>;
+using Vec4 = Vector<4>;
 
-using Mat2f = Matrixf_ARM<2, 2>;
-using Mat3f = Matrixf_ARM<3, 3>;
-using Mat4f = Matrixf_ARM<4, 4>;
+using Mat2 = Matrix<2, 2>;
+using Mat3 = Matrix<3, 3>;
+using Mat4 = Matrix<4, 4>;
 
-} // namespace algo
+} // namespace ARM
 } // namespace vlib
 
 #endif // MATRIX_ARM_HPP

@@ -22,8 +22,8 @@
  * bsp         bsp_can                                                          bsp_uart
 */
 
-#ifndef RM_MOTOR_HPP
-#define RM_MOTOR_HPP
+#ifndef VLIB_DEVICE_RM_MOTOR_HPP
+#define VLIB_DEVICE_RM_MOTOR_HPP
 
 #include <array>
 #include <cstddef>
@@ -56,15 +56,15 @@ public:
     }
 
     void Decode(uint8_t* buf) {
-        encoder = (int16_t)((buf[0] << 8) | buf[1]);
-        velocity = (int16_t)((buf[2] << 8) | buf[3]);
+        encoder     = (int16_t)((buf[0] << 8) | buf[1]);
+        velocity    = (int16_t)((buf[2] << 8) | buf[3]);
         current_fdb = (int16_t)((buf[4] << 8) | buf[5]);
         temperature = buf[6];
     }
 
     void Setpoint(int16_t current) {
-        current_ctrl = current;
-        ctrl_msg_buf[((id - 1) % 4) * 2] = current_ctrl >> 8;
+        current_ctrl                         = current;
+        ctrl_msg_buf[((id - 1) % 4) * 2]     = current_ctrl >> 8;
         ctrl_msg_buf[((id - 1) % 4) * 2 + 1] = current_ctrl;
     }
 };
@@ -99,8 +99,7 @@ public:
 
 #define HEXROLL_GEAR_RATIO (268.f / 17.f) // HEXROLL 减速比
 
-#define HEXROLL_VELOCITY(self) \
-    ((float)(self)->velocity / 60.0f * 2 * PI / HEXROLL_GEAR_RATIO) // unit: rad/s
+#define HEXROLL_VELOCITY(self) ((float)(self)->velocity / 60.0f * 2 * PI / HEXROLL_GEAR_RATIO) // unit: rad/s
 
 #define HEXROLL_TORQUE_TO_CURRENT(torque) (int16_t)(torque * 3326.263229308005)
 #define HEXROLL_CURRENT_TO_TORQUE(current) (int16_t)(current / 3326.263229308005)

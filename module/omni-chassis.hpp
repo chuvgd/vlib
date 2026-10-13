@@ -9,8 +9,8 @@
  * 
 */
 
-#ifndef OMNI_CHASSIS_HPP
-#define OMNI_CHASSIS_HPP
+#ifndef VLIB_MODULE_OMNI_CHASSIS_HPP
+#define VLIB_MODULE_OMNI_CHASSIS_HPP
 
 namespace rb2 {
 namespace module {
@@ -28,7 +28,8 @@ public:
 
     Type type;
 
-    Omni_Chassis(Type t): type(t) {}
+    Omni_Chassis(Type t):
+        type(t) {}
 };
 
 } // namespace module

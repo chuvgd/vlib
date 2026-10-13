@@ -9,8 +9,8 @@
  * 
 */
 
-#ifndef DM_MOTOR_HPP
-#define DM_MOTOR_HPP
+#ifndef VLIB_DEVICE_DM_MOTOR_HPP
+#define VLIB_DEVICE_DM_MOTOR_HPP
 
 #include <algorithm>
 #include <array>
@@ -56,8 +56,8 @@ public:
 
     // 反馈数据
     struct Feedback {
-        uint32_t id;                  // 控制器的 ID，取 CAN_ID 的低 8 位
-        State state = State::Disable; // 状态
+        uint32_t id;                     // 控制器的 ID，取 CAN_ID 的低 8 位
+        State    state = State::Disable; // 状态
 
         float position; // 位置
         float velocity; // 速度
@@ -84,7 +84,7 @@ public:
         param(param_) {}
 
     void SetCommand(Command cmd) {
-        buf = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, static_cast<uint8_t>(cmd) };
+        buf = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, static_cast<uint8_t>(cmd)};
     }
 
     void Transmit(Control data) {}
@@ -92,13 +92,13 @@ public:
     void Receive(uint8_t* rx) {}
 
 private:
-    CanID can_id       = 0;
-    MasterID master_id = 0;
-    Mode mode          = Mode::MIT;
+    CanID     can_id    = 0;
+    MasterID  master_id = 0;
+    Mode      mode      = Mode::MIT;
     Parameter param;
 
-    Feedback feedback {};
-    Control control {};
+    Feedback               feedback {};
+    Control                control {};
     std::array<uint8_t, 8> buf {};
 
     void Feedback_Decode(uint8_t* rx) {
@@ -118,7 +118,7 @@ private:
     }
 
     void MIT_Encode(float kp, float kd, float position, float velocity, float torque) {
-        uint8_t data[8];
+        uint8_t  data[8];
         uint16_t pos_tmp, vel_tmp, kp_tmp, kd_tmp, tor_tmp;
 
         pos_tmp = float_to_uint(position, param.p_min, param.p_max, 16);
@@ -138,7 +138,7 @@ private:
     }
 
     void PosSpd_Encode(float position, float velocity) {
-        uint8_t data[8];
+        uint8_t  data[8];
         uint32_t p, v;
 
         std::memcpy(&p, &position, sizeof(p));
@@ -156,7 +156,7 @@ private:
     }
 
     void Speed_Encode(float velocity) {
-        uint8_t data[8];
+        uint8_t  data[8];
         uint32_t v;
 
         std::memcpy(&v, &velocity, sizeof(v));
@@ -180,8 +180,7 @@ private:
     }
 };
 
-static constexpr DM_Motor::Parameter dm4310 { -12.5f, 12.5f, -30.0f, 30.0f,  0.0f,
-                                              500.0f, 0.0f,  5.0f,   -10.0f, 10.0f };
+static constexpr DM_Motor::Parameter dm4310 {-12.5f, 12.5f, -30.0f, 30.0f, 0.0f, 500.0f, 0.0f, 5.0f, -10.0f, 10.0f};
 
 } // namespace comm
 } // namespace vlib

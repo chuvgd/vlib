@@ -9,13 +9,12 @@
  * 
  */
 
-#ifndef SIMPLE_FILTER_HPP
-#define SIMPLE_FILTER_HPP
+#ifndef VLIB_ALGO_SIMPLE_FILTER_HPP
+#define VLIB_ALGO_SIMPLE_FILTER_HPP
 
 #include <cstdint>
 
 namespace vlib {
-namespace algo {
 
 /* ---------------------------------------------------------------- LowPass_Order_1 ---------------------------------------------------------------- */
 
@@ -61,7 +60,7 @@ private:
 /// - 若输入出现 inf / nan，请检查数据范围（尤其是填充窗口的初值）。
 class Moving_Average_Filter {
 public:
-    static constexpr uint8_t WINDOW_MAX_SIZE  = 32;
+    static constexpr uint8_t  WINDOW_MAX_SIZE = 32;
     static constexpr uint32_t RECALC_INTERVAL = 79;
 
     explicit Moving_Average_Filter(uint8_t width);
@@ -78,14 +77,13 @@ public:
     }
 
 private:
-    float window[WINDOW_MAX_SIZE];
-    float average;
-    uint8_t width;
-    uint8_t index;
+    float    window[WINDOW_MAX_SIZE];
+    float    average;
+    uint8_t  width;
+    uint8_t  index;
     uint32_t recalc_cnt;
 };
 
-} // namespace algo
 } // namespace vlib
 
 #endif

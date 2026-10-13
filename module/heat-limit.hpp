@@ -9,8 +9,8 @@
  *
  */
 
-#ifndef HEAT_LIMIT_HPP
-#define HEAT_LIMIT_HPP
+#ifndef VLIB_MODULE_HEAT_LIMIT_HPP
+#define VLIB_MODULE_HEAT_LIMIT_HPP
 
 #include "math.h"
 #include "stdint.h"
@@ -51,13 +51,9 @@ float Heat_Limit(float cooling_speed, float heat_limit, float heat_per_bullet) {
             else
                 target_fire_rate = cooling_speed / BULLET_HEAT;
 
-            float max_safe_rpm =
-                (target_fire_rate * 60.0f / SLOTS_ON_PLATE) * GEAR_RATIO * SMALL_GEAR_RATIO;
+            float max_safe_rpm = (target_fire_rate * 60.0f / SLOTS_ON_PLATE) * GEAR_RATIO * SMALL_GEAR_RATIO;
 
-            shoot_freq = std::fmax(
-                0.0f,
-                std::fmin(max_safe_rpm, static_cast<float>(SHOOT_MOTOR_DARTLE_SPEED_SET))
-            );
+            shoot_freq = std::fmax(0.0f, std::fmin(max_safe_rpm, static_cast<float>(SHOOT_MOTOR_DARTLE_SPEED_SET)));
         }
     } else {
         shoot_freq = 0;

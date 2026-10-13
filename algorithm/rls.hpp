@@ -14,11 +14,10 @@
 
 #pragma once
 
-using vlib::algo::Matf;
-using vlib::algo::Vecf;
-
 namespace vlib {
-namespace rls {
+
+using ARM::Matrix;
+using ARM::Vector;
 
 template<size_t DIM>
 class RLS {
@@ -31,23 +30,23 @@ public:
         delta(delta_),
         lastUpdate(0),
         cnt(0),
-        default_param(Vecf<DIM>::zeros()) {
+        default_param(Vector<DIM>::zeros()) {
         reset();
         validate();
     }
 
-    constexpr RLS(float delta_, float lambda_, Vecf<DIM> initParam):
+    constexpr RLS(float delta_, float lambda_, Vector<DIM> initParam):
         RLS(delta_, lambda_) {
         default_param = initParam;
     }
 
     void Reset() {
-        transM = Matf<DIM, DIM>::eye() * delta;
-        gain   = Vecf<DIM>::zeros();
-        param  = Vecf<DIM>::zeros();
+        transM = Matrix<DIM, DIM>::eye() * delta;
+        gain   = Vector<DIM>::zeros();
+        param  = Vector<DIM>::zeros();
     }
 
-    const Vecf<DIM>& update(Vecf<DIM>& sample, float actualOutput) {
+    const Vector<DIM>& update(Vector<DIM>& sample, float actualOutput) {
         gain = (transM * sample) / (1 + (sample.trans() * transM * sample)[0][0] / lambda) / lambda;
         param += gain * (actualOutput - (sample.trans() * param)[0][0]);
         transM = (transM - gain * sample.trans() * transM) / lambda;
@@ -58,11 +57,11 @@ public:
         return param;
     }
 
-    void SetParam(const Vecf<DIM>& updatedParams) {
+    void SetParam(const Vector<DIM>& updatedParams) {
         param = default_param = updatedParams;
     }
 
-    constexpr Vecf<DIM>& GetParam() const {
+    constexpr Vector<DIM>& GetParam() const {
         return param;
     }
 
@@ -84,14 +83,13 @@ private:
     float delta;  // Intialized value of the transferred matrix
 
     uint32_t cnt; // Total update Count
-    bool error_flag;
+    bool     error_flag;
 
-    Matf<DIM, DIM> transM; // Transfer matrix instance
-    Vecf<DIM> gain;        // Gain vector for params update
-    Vecf<DIM> param;       // Params vector
-    Vecf<DIM> default_param;
-    float output; // Estimated / filtered output
+    Matrix<DIM, DIM> transM; // Transfer matrix instance
+    Vector<DIM>      gain;   // Gain vector for params update
+    Vector<DIM>      param;  // Params vector
+    Vector<DIM>      default_param;
+    float            output; // Estimated / filtered output
 };
 
-} // namespace rls
 } // namespace vlib

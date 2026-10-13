@@ -16,10 +16,12 @@
  * 帧长：32 bytes
 */
 
+#ifndef VLIB_DEVICE_IBUS_HPP
+#define VLIB_DEVICE_IBUS_HPP
+
 #include <cstdint>
 
 namespace vlib {
-namespace comm {
 
 class Ibus {
 #define IBUS_CH_LEN 18
@@ -43,13 +45,13 @@ public:
 
         // ch 1 -- 14
         for (; i < 14; i++) {
-            t = 2 * i;
+            t          = 2 * i;
             channel[i] = (uint16_t)((buf[t + 2] | (buf[t + 3] << 8)) & 0x07FF);
         }
 
         // ch 15 -- 18
         for (; i < 18; i++) {
-            t = (i - 14) * 6;
+            t          = (i - 14) * 6;
             channel[i] = (uint16_t)(((buf[t + 3] >> 4) | buf[t + 5] | (buf[t + 7] << 4)) & 0x07FF);
         }
 
@@ -64,5 +66,6 @@ public:
     }
 };
 
-} // namespace comm
 } // namespace vlib
+
+#endif
