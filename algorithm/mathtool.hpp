@@ -20,7 +20,6 @@
 #include <type_traits>
 
 namespace vlib {
-namespace algo {
 
 /* ================================================================ detail ================================================================ */
 
@@ -321,7 +320,6 @@ T HalfCircleNearestPoint(T point, T setpoint) {
     return point + HalfCircleNearestDistance(point, setpoint);
 }
 
-} // namespace algo
 } // namespace vlib
 
 #endif
