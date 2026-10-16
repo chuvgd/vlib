@@ -83,9 +83,7 @@ public:
     DM_Motor(Parameter param_):
         param(param_) {}
 
-    void SetCommand(Command cmd) {
-        buf = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, static_cast<uint8_t>(cmd)};
-    }
+    void SetCommand(Command cmd) { buf = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, static_cast<uint8_t>(cmd)}; }
 
     void Transmit(Control data) {}
 

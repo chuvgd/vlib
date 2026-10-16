@@ -1,5 +1,5 @@
 /**
- * @file matrix-arm.hpp
+ * @file arm-matrix.hpp
  * @author Serialist (ba3pt@qq.com)
  * @brief 
  * @version 0.1.0
@@ -9,8 +9,8 @@
  * 
 */
 
-#ifndef VLIB_ALGO_MATRIX_ARM_HPP
-#define VLIB_ALGO_MATRIX_ARM_HPP
+#ifndef VLIB_ALGO_ARM_MATRIX_HPP
+#define VLIB_ALGO_ARM_MATRIX_HPP
 
 #include "arm_math.h"
 

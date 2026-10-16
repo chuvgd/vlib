@@ -14,7 +14,7 @@
 
 #include <cstddef>
 
-#include "algorithm/matrix-arm.hpp"
+#include "algorithm/arm-matrix.hpp"
 
 namespace vlib {
 

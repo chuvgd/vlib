@@ -10,7 +10,7 @@
 
 #include <cstdint>
 
-#include "algorithm/matrix-arm.hpp"
+#include "algorithm/arm-matrix.hpp"
 
 #pragma once
 

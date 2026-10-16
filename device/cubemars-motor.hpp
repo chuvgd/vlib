@@ -12,8 +12,8 @@
 #ifndef VLIB_DEVICE_CUBEMARS_MOTOR_HPP
 #define VLIB_DEVICE_CUBEMARS_MOTOR_HPP
 
-#include "array"
-#include "cstdint"
+#include <array>
+#include <cstdint>
 
 namespace vlib {
 namespace comm {
@@ -36,21 +36,26 @@ public:
     float   errorcode {};
     uint8_t cnt {}; // 掉线看门狗
 
-    AK_Motor(const AK_Motor::Param& param_, const Mode mode_):
+    // 合并为一个构造函数，必须初始化 param、mode 和 ctrl_id
+    AK_Motor(const Param& param_, const Mode mode_, uint8_t ctrl_id_ = 0):
         param(param_),
         mode(mode_),
+        ctrl_id(ctrl_id_),
         cnt(0) {}
 
     void Enable(void) { // 据说使能命令最好不要重复发送...?
         std::array<uint8_t, 8> buf {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC};
+        (void)buf; // 实际应发送到 CAN 总线
     }
 
     void Disable(void) {
         std::array<uint8_t, 8> buf {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD};
+        (void)buf;
     }
 
-    void Setorigin(void) { // 但这个似乎断电不保存...要小心...
+    void SetOrigin(void) { // 但这个似乎断电不保存...要小心...
         std::array<uint8_t, 8> buf {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE};
+        (void)buf;
     }
 
     std::array<uint8_t, 8> Control_Encode(float pos, float vel, float kp, float kd, float torque) {
@@ -81,17 +86,11 @@ public:
         cnt      = 50u;
     }
 
-    void Monitor(void) {
-        cnt = cnt > 0 ? cnt - 1 : 0;
-    }
+    void Monitor(void) { cnt = cnt > 0 ? cnt - 1 : 0; }
 
-    bool IsOnline(void) {
-        return cnt > 0;
-    }
+    bool IsOnline(void) { return cnt > 0; }
 
-    float Bit2Float(int x_int, float x_min, float x_max, int Bits) {
-        return ((float)x_int) * (x_max - x_min) / ((float)((1 << Bits) - 1)) + x_min;
-    }
+    float Bit2Float(int x_int, float x_min, float x_max, int Bits) { return ((float)x_int) * (x_max - x_min) / ((float)((1 << Bits) - 1)) + x_min; }
 
     int Float2Bit(float x, float x_min, float x_max, int bits) {
         x = x < x_min ? x_min : x > x_max ? x_max : x; // 限幅
@@ -104,33 +103,43 @@ public:
 #define PacketID_POS 0
 #define PacketID_ORIGIN 0
 
-    uint8_t ctrl_id;
+    uint8_t ctrl_id {}; // 添加默认初始化
 
-    AK_Motor(uint8_t ctrl_id_):
-        ctrl_id(ctrl_id_) {}
-
+    // 注意：以下函数中的局部变量 buf、id、len 均未使用，实际应发送到 CAN 总线
     void SetCurrent(float current) {
         auto buf = buffer_append_int32(current * 1000.0f);
         auto id  = ctrl_id | (PacketID_CURRENT << 8);
         auto len = 4;
+        (void)buf;
+        (void)id;
+        (void)len;
     }
 
-    void SetVelocity(uint8_t ctrl_id, float rpm) {
+    void SetVelocity(uint8_t can_id, float rpm) {
         auto buf = buffer_append_int32(rpm);
-        auto id  = ctrl_id | (PacketID_RPM << 8);
+        auto id  = can_id | (PacketID_RPM << 8);
         auto len = 4;
+        (void)buf;
+        (void)id;
+        (void)len;
     }
 
-    void SetPosition(uint8_t ctrl_id, float pos) {
+    void SetPosition(uint8_t can_id, float pos) {
         auto buf = buffer_append_int32(pos * 10000.0f);
-        auto id  = ctrl_id | (PacketID_POS << 8);
+        auto id  = can_id | (PacketID_POS << 8);
         auto len = 4;
+        (void)buf;
+        (void)id;
+        (void)len;
     }
 
-    void SetOrigin(uint8_t ctrl_id, uint8_t set_origin_mode) {
+    void SetOrigin(uint8_t can_id, uint8_t set_origin_mode) {
         auto buf = set_origin_mode;
-        auto id  = ctrl_id | (PacketID_ORIGIN << 8);
+        auto id  = can_id | (PacketID_ORIGIN << 8);
         auto len = 1;
+        (void)buf;
+        (void)id;
+        (void)len;
     }
 
     std::array<uint8_t, 4> buffer_append_int32(int32_t number) {
@@ -143,7 +152,8 @@ public:
     }
 };
 
-constexpr AK_Motor::Param AK10_9_PARAM = {12.5f, 50.0f, 0, 500.0f, 0, 5.0f, 65.0f}, AK60_6_PARAM = {12.5f, 45.0f, 0, 500.0f, 0, 5.0f, 15.0f};
+constexpr AK_Motor::Param AK10_9_PARAM = {12.5f, 50.0f, 0.0f, 500.0f, 0.0f, 5.0f, 65.0f};
+constexpr AK_Motor::Param AK60_6_PARAM = {12.5f, 45.0f, 0.0f, 500.0f, 0.0f, 5.0f, 15.0f};
 
 } // namespace comm
 } // namespace vlib

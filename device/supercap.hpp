@@ -73,13 +73,9 @@ public:
     }
 
     /// @brief 在线检测
-    void Monitor(void) {
-        cnt = (cnt > 0) ? cnt-- : 0;
-    }
+    void Monitor(void) { cnt = (cnt > 0) ? cnt-- : 0; }
 
-    bool IsOnline(void) {
-        return cnt > 0;
-    }
+    bool IsOnline(void) { return cnt > 0; }
 };
 
 } // namespace device
