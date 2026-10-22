@@ -1,56 +1,53 @@
 /**
  * @file can.hpp
- * @author Serialist (ba3pt@qq.com)
- * @brief 
- * @version 0.1.0
- * @date 2026-10-23
- * 
- * @copyright Copyright (c) Serialist 2026
- * 
-*/
+ * @brief 通用 CAN 接口（零平台依赖）
+ *
+ * 描述符 CONFIG 由 BSP 提供，必须实现：
+ *   using Backend  = ...;                              // 平台句柄（如 void*）
+ *   using Frame    = ...;                              // 帧类型
+ *   using Callback = void (*)(const Frame&);           // 接收回调
+ *   static void init(Backend);
+ *   static bool transmit(Backend, const Frame&);
+ *   static void subscribe(Backend, uint32_t id, Callback);
+ */
 
 #pragma once
 
+#include <array>
 #include <stddef.h>
 #include <stdint.h>
-#include <vector>
 
 namespace vlib {
 
-struct Device_Config {
-    using Backend  = void*;
-    using Callback = void*;
-    using Transmit = void*;
-    using Register = void*;
-    using Init     = void*;
+/// 通用 CAN 帧：LEN = 8（经典 CAN）/ 64（CAN FD）
+template<size_t LEN = 8>
+struct CAN_Frame {
+    uint32_t                 id = 0;
+    std::array<uint8_t, LEN> data {};
 };
 
-template<class CONFIG>
-struct Device_API {
-    struct Frame {
-        uint32_t             id = 0;
-        std::vector<uint8_t> data {};
-    };
+namespace device {
 
+struct Config {};
+
+template<typename CONFIG>
+class Interface {
     using Backend  = typename CONFIG::Backend;
+    using Frame    = typename CONFIG::Frame;
     using Callback = typename CONFIG::Callback;
+    Backend backend_;
 
-    explicit CAN_API(Backend h):
-        backend(h) {}
-
-    void Init() { CONFIG::Init(backend); }
-
-    bool Transmit(const CAN_Frame& frame) { return CONFIG::Transmit(backend, frame); }
-    void RegisterCallback(uint32_t id, Callback cb) { CONFIG::Register(backend, id, callback); }
-
-    // 语法糖，方便使用
-    CAN& operator<<(const CAN_Frame& frame) {
+public:
+    explicit Interface(Backend h):
+        backend_(h) {}
+    void       Init() { CONFIG::init(backend_); }
+    bool       Transmit(const Frame& frame) { return CONFIG::transmit(backend_, frame); }
+    Interface& operator<<(const Frame& frame) {
         Transmit(frame);
         return *this;
     }
-
-private:
-    Backend backend;
+    void RegisterCallback(uint32_t id, Callback cb) { CONFIG::subscribe(backend_, id, cb); }
 };
 
+} // namespace device
 } // namespace vlib

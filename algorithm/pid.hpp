@@ -29,13 +29,13 @@ class PID {
     float out {}, pout {}, iout {}, dout {};
 
 public:
-    PID(float kp_, float ki_, float kd_, float maxout_, float maxiout_, float dt_ = float {1}):
+    constexpr PID(float kp_, float ki_, float kd_, float maxout_, float maxiout_, float dt_ = 1.f):
         kp(kp_),
         ki(ki_),
         kd(kd_),
-        maxout(maxout_ >= float {0} ? maxout_ : float {0}),
-        maxiout(maxiout_ >= float {0} ? maxiout_ : float {0}),
-        dt(dt_ > float {0} ? dt_ : float {1}) {}
+        maxout(maxout_ > 0.f ? maxout_ : 0.f),
+        maxiout(maxiout_ > 0.f ? maxiout_ : 0.f),
+        dt(dt_ > 0.f ? dt_ : 1.f) {}
 
     /// @brief 普通位置式 PID
     /// @param reference 参考值（目标值）

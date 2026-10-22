@@ -46,6 +46,10 @@ public:
     static constexpr T kMecanum = T {1};
     static constexpr T kOmni45  = T {0.70710678118654752440};
 
+    struct Wheel {
+        T w[4];
+    };
+
     struct Twist {
         T vx, vy, wz;
     };
@@ -60,7 +64,7 @@ public:
     /// @param xwith 轮心到中心的 x 向距离（半轴距）
     /// @param ywith 轮心到中心的 y 向距离（半轮距）
     /// @param gain kMecanum 或 kOmni45
-    Omni_Chassis(T wheel_radius, T xwith, T ywith, T gain = kOmni45):
+    constexpr Omni_Chassis(T wheel_radius, T xwith, T ywith, T gain = kOmni45):
         ab_(xwith + ywith),
         u_(gain / wheel_radius),
         r_(wheel_radius / (T {4} * gain)),
@@ -72,11 +76,13 @@ public:
     /// @brief 速度正解：底盘速度 -> 四轮角速度
     /// @param v 底盘速度 (vx, vy, wz)
     /// @param w 输出轮角速度 [FL, FR, RL, RR] (rad/s)
-    void WheelFromTwist(const Twist& v, T (&w)[4]) const {
-        w[0] = u_ * (v.vx - v.vy - ab_ * v.wz);
-        w[1] = u_ * (v.vx + v.vy + ab_ * v.wz);
-        w[2] = u_ * (v.vx + v.vy - ab_ * v.wz);
-        w[3] = u_ * (v.vx - v.vy + ab_ * v.wz);
+    [[nodiscard]] Wheel WheelFromTwist(const Twist& v) const {
+        const T w1 = u_ * (v.vx - v.vy - ab_ * v.wz);
+        const T w2 = u_ * (v.vx + v.vy + ab_ * v.wz);
+        const T w3 = u_ * (v.vx + v.vy - ab_ * v.wz);
+        const T w4 = u_ * (v.vx - v.vy + ab_ * v.wz);
+
+        return {w1, w2, w3, w4};
     }
 
     /// @brief 速度逆解：四轮角速度 -> 底盘速度（里程计）
@@ -95,13 +101,15 @@ public:
     /// @brief 力正解：底盘期望力旋量 -> 四轮力矩（最小范数，不含内力）
     /// @param f 底盘力旋量 (fx, fy, mz)
     /// @param tau 输出轮力矩 [FL, FR, RL, RR] (N·m)
-    void TorqueFromWrench(const Wrench& f, T (&tau)[4]) const {
+    [[nodiscard]] Wheel TorqueFromWrench(const Wrench& f) const {
         const T mz = f.mz / ab_;
 
-        tau[0] = r_ * (f.fx - f.fy - mz);
-        tau[1] = r_ * (f.fx + f.fy + mz);
-        tau[2] = r_ * (f.fx + f.fy - mz);
-        tau[3] = r_ * (f.fx - f.fy + mz);
+        const T w1 = r_ * (f.fx - f.fy - mz);
+        const T w2 = r_ * (f.fx + f.fy + mz);
+        const T w3 = r_ * (f.fx + f.fy - mz);
+        const T w4 = r_ * (f.fx - f.fy + mz);
+
+        return {w1, w2, w3, w4};
     }
 
     /// @brief 力逆解：四轮力矩 -> 底盘力旋量
