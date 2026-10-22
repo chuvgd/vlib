@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "vlib/bsp/can.hpp"
+
 namespace vlib {
 namespace comm {
 

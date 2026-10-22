@@ -1,60 +1,56 @@
+/**
+ * @file can.hpp
+ * @author Serialist (ba3pt@qq.com)
+ * @brief 
+ * @version 0.1.0
+ * @date 2026-10-23
+ * 
+ * @copyright Copyright (c) Serialist 2026
+ * 
+*/
+
 #pragma once
 
-#include <array>
-#include <cstddef>
-#include <cstdint>
-#include <type_traits>
-#include <utility>
+#include <stddef.h>
+#include <stdint.h>
+#include <vector>
 
 namespace vlib {
 
-// ---------------- 通用 CAN 帧 ----------------
-template<std::size_t LEN = 8>
-struct CAN_Frame {
-    std::uint32_t                 id = 0;   // 标准/扩展 ID
-    std::array<std::uint8_t, LEN> bytes {}; // 数据（LEN 字节）
+struct Device_Config {
+    using Backend  = void*;
+    using Callback = void*;
+    using Transmit = void*;
+    using Register = void*;
+    using Init     = void*;
 };
 
-using CanFrame   = CAN_Frame<8>;  // 经典 CAN
-using CanFdFrame = CAN_Frame<64>; // CAN FD
+template<class CONFIG>
+struct Device_API {
+    struct Frame {
+        uint32_t             id = 0;
+        std::vector<uint8_t> data {};
+    };
 
-// ---------------- 描述符契约检测（C++11 可用的 void_t）----------------
-namespace detail {
-template<class...>
-struct make_void {
-    using type = void;
-};
-template<class... Ts>
-using void_t = typename make_void<Ts...>::type;
+    using Backend  = typename CONFIG::Backend;
+    using Callback = typename CONFIG::Callback;
 
-template<class T, class = void>
-struct can_descriptor: std::false_type {};
+    explicit CAN_API(Backend h):
+        backend(h) {}
 
-template<class T>
-struct can_descriptor<
-    T,
-    void_t<typename T::data, typename T::backend, decltype(T::send(std::declval<const typename T::data&>(), std::declval<typename T::backend>()))>>:
-    std::true_type {};
-} // namespace detail
+    void Init() { CONFIG::Init(backend); }
 
-// ---------------- 通用句柄 ----------------
-template<class Ex>
-struct CAN_Handle {
-    static_assert(detail::can_descriptor<Ex>::value, "Ex must provide data/backend and static send()");
+    bool Transmit(const CAN_Frame& frame) { return CONFIG::Transmit(backend, frame); }
+    void RegisterCallback(uint32_t id, Callback cb) { CONFIG::Register(backend, id, callback); }
 
-    using data    = typename Ex::data;
-    using backend = typename Ex::backend;
-
-    explicit CAN_Handle(backend h = backend {}):
-        backend_(h) {}
-
-    CAN_Handle& operator<<(const data& frame) {
-        Ex::send(frame, backend_);
+    // 语法糖，方便使用
+    CAN& operator<<(const CAN_Frame& frame) {
+        Transmit(frame);
         return *this;
     }
 
 private:
-    backend backend_ {};
+    Backend backend;
 };
 
 } // namespace vlib
