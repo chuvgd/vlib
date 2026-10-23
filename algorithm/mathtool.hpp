@@ -27,25 +27,13 @@ namespace detail {
 
 // 平台适配：确保 float / double / long double 使用各自精度的 floor / fabs，
 // 避免在部分嵌入式标准库中隐式提升为 double。
-inline float Floor(float x) {
-    return std::floor(x);
-}
-inline double Floor(double x) {
-    return std::floor(x);
-}
-inline long double Floor(long double x) {
-    return std::floor(x);
-}
+inline float       Floor(float x) { return std::floor(x); }
+inline double      Floor(double x) { return std::floor(x); }
+inline long double Floor(long double x) { return std::floor(x); }
 
-inline float Abs(float x) {
-    return std::abs(x);
-}
-inline double Abs(double x) {
-    return std::abs(x);
-}
-inline long double Abs(long double x) {
-    return std::abs(x);
-}
+inline float       Abs(float x) { return std::abs(x); }
+inline double      Abs(double x) { return std::abs(x); }
+inline long double Abs(long double x) { return std::abs(x); }
 
 } // namespace detail
 
@@ -59,18 +47,18 @@ constexpr float e       = 2.71828182845904523536; // euler number
 /* ================================================================ function ================================================================ */
 
 /// @brief 弧度转角度
-template<typename T>
+template<typename T = float>
 constexpr T Rad2Deg(T rad) {
     return rad * T(57.295779513);
 }
 
 /// @brief 角度转弧度
-template<typename T>
+template<typename T = float>
 constexpr T Deg2Rad(T deg) {
     return deg * T(0.01745329252);
 }
 
-template<typename T>
+template<typename T = float>
 constexpr T Sign(T x) {
     return x > T(0) ? T(1) : (x < T(0) ? T(-1) : T(0));
 }
@@ -90,7 +78,7 @@ inline long long FPow(long long a, long long b) {
     while (b) {
         if (b & 1)
             res = res * a;
-        a = a * a;
+        a   = a * a;
         b >>= 1;
     }
     return res;
@@ -112,7 +100,7 @@ inline long long FPowMod(long long a, long long b, long long p) {
     while (b) {
         if (b & 1)
             res = res * a % p;
-        a = a * a % p;
+        a   = a * a % p;
         b >>= 1;
     }
     return res;
