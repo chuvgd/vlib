@@ -36,26 +36,31 @@
 
 namespace vlib {
 
-template<typename T = float>
 class Omni_Chassis {
+    float ab_ {};  // xwith + ywith
+    float u_ {};   // gain / r
+    float r_ {};   // r / (4 * gain)
+    float rab_ {}; // r / (4 * gain * (xwith + ywith))
+    float uab_ {}; // gain * (xwith + ywith) / r
+
 public:
     /// @brief 轮系增益 gain
     /// - 麦轮：辊子 45°、轮面沿车体轴，同样前进速度下轮速就是 v/r，取 1
     /// - 全向轮：轮面本身在 45°，前进速度只有 v·cos45 进到轮子，取 1/√2
     /// 两者的 J 结构完全一样，只差这一个系数（等价于差一个 √2 的等效轮半径）。
-    static constexpr T kMecanum = T {1};
-    static constexpr T kOmni45  = T {0.70710678118654752440};
+    static constexpr float kMecanum = float {1};
+    static constexpr float kOmni45  = float {0.70710678118654752440};
 
     struct Wheel {
-        T w[4];
+        float w[4];
     };
 
     struct Twist {
-        T vx, vy, wz;
+        float vx, vy, wz;
     };
 
     struct Wrench {
-        T fx, fy, mz;
+        float fx, fy, mz;
     };
 
     Omni_Chassis() = default;
@@ -64,11 +69,11 @@ public:
     /// @param xwith 轮心到中心的 x 向距离（半轴距）
     /// @param ywith 轮心到中心的 y 向距离（半轮距）
     /// @param gain kMecanum 或 kOmni45
-    constexpr Omni_Chassis(T wheel_radius, T xwith, T ywith, T gain = kOmni45):
+    constexpr Omni_Chassis(float wheel_radius, float xwith, float ywith, float gain = kOmni45):
         ab_(xwith + ywith),
         u_(gain / wheel_radius),
-        r_(wheel_radius / (T {4} * gain)),
-        rab_(wheel_radius / (T {4} * gain * (xwith + ywith))),
+        r_(wheel_radius / (float {4} * gain)),
+        rab_(wheel_radius / (float {4} * gain * (xwith + ywith))),
         uab_(gain * (xwith + ywith) / wheel_radius) {}
 
     /* ---------------------------------- 速度 ---------------------------------- */
@@ -77,10 +82,10 @@ public:
     /// @param v 底盘速度 (vx, vy, wz)
     /// @param w 输出轮角速度 [FL, FR, RL, RR] (rad/s)
     [[nodiscard]] Wheel WheelFromTwist(const Twist& v) const {
-        const T w1 = u_ * (v.vx - v.vy - ab_ * v.wz);
-        const T w2 = u_ * (v.vx + v.vy + ab_ * v.wz);
-        const T w3 = u_ * (v.vx + v.vy - ab_ * v.wz);
-        const T w4 = u_ * (v.vx - v.vy + ab_ * v.wz);
+        const float w1 = u_ * (v.vx - v.vy - ab_ * v.wz);
+        const float w2 = u_ * (v.vx + v.vy + ab_ * v.wz);
+        const float w3 = u_ * (v.vx + v.vy - ab_ * v.wz);
+        const float w4 = u_ * (v.vx - v.vy + ab_ * v.wz);
 
         return {w1, w2, w3, w4};
     }
@@ -88,10 +93,10 @@ public:
     /// @brief 速度逆解：四轮角速度 -> 底盘速度（里程计）
     /// @param w 轮角速度 [FL, FR, RL, RR] (rad/s)
     /// @return 底盘速度 (vx, vy, wz)
-    [[nodiscard]] Twist TwistFromWheel(const T (&w)[4]) const {
-        const T s = w[0] + w[1] + w[2] + w[3];
-        const T d = -w[0] + w[1] + w[2] - w[3];
-        const T e = -w[0] + w[1] - w[2] + w[3];
+    [[nodiscard]] Twist TwistFromWheel(const float (&w)[4]) const {
+        const float s = w[0] + w[1] + w[2] + w[3];
+        const float d = -w[0] + w[1] + w[2] - w[3];
+        const float e = -w[0] + w[1] - w[2] + w[3];
 
         return {r_ * s, r_ * d, rab_ * e};
     }
@@ -102,12 +107,12 @@ public:
     /// @param f 底盘力旋量 (fx, fy, mz)
     /// @param tau 输出轮力矩 [FL, FR, RL, RR] (N·m)
     [[nodiscard]] Wheel TorqueFromWrench(const Wrench& f) const {
-        const T mz = f.mz / ab_;
+        const float mz = f.mz / ab_;
 
-        const T w1 = r_ * (f.fx - f.fy - mz);
-        const T w2 = r_ * (f.fx + f.fy + mz);
-        const T w3 = r_ * (f.fx + f.fy - mz);
-        const T w4 = r_ * (f.fx - f.fy + mz);
+        const float w1 = r_ * (f.fx - f.fy - mz);
+        const float w2 = r_ * (f.fx + f.fy + mz);
+        const float w3 = r_ * (f.fx + f.fy - mz);
+        const float w4 = r_ * (f.fx - f.fy + mz);
 
         return {w1, w2, w3, w4};
     }
@@ -115,20 +120,13 @@ public:
     /// @brief 力逆解：四轮力矩 -> 底盘力旋量
     /// @param tau 轮力矩 [FL, FR, RL, RR] (N·m)
     /// @return 底盘力旋量 (fx, fy, mz)
-    [[nodiscard]] Wrench WrenchFromTorque(const T (&tau)[4]) const {
-        const T s = tau[0] + tau[1] + tau[2] + tau[3];
-        const T d = -tau[0] + tau[1] + tau[2] - tau[3];
-        const T e = -tau[0] + tau[1] - tau[2] + tau[3];
+    [[nodiscard]] Wrench WrenchFromTorque(const float (&tau)[4]) const {
+        const float s = tau[0] + tau[1] + tau[2] + tau[3];
+        const float d = -tau[0] + tau[1] + tau[2] - tau[3];
+        const float e = -tau[0] + tau[1] - tau[2] + tau[3];
 
         return {u_ * s, u_ * d, uab_ * e};
     }
-
-private:
-    T ab_ {};  // xwith + ywith
-    T u_ {};   // gain / r
-    T r_ {};   // r / (4 * gain)
-    T rab_ {}; // r / (4 * gain * (xwith + ywith))
-    T uab_ {}; // gain * (xwith + ywith) / r
 };
 
 } // namespace vlib

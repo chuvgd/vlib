@@ -19,6 +19,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <type_traits>
+#include <array>
 
 // Set to 1 to enable run-time bounds checking in operator() and operator[].
 // Leave at 0 in release builds on STM32.
@@ -456,7 +457,9 @@ public:
     }
 
 private:
-    std::array<float, R * C> data_;
+    // Raw C array, not std::array: the implementation relies on the implicit
+    // array-to-pointer decay (data_ + n, return data_, memcpy(..., data_, ...)).
+    float data_[R * C];
 };
 
 // Convenient aliases ------------------------------------------------------
