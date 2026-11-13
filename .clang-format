@@ -1,0 +1,252 @@
+# ref: [C++ 代码风格指南](https://sjtu-robomaster-team.github.io/cpp-style-guide/)
+# 有修改
+
+# ============================================================
+# 基础
+# ============================================================
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++14
+DisableFormat: false
+
+# ============================================================
+# 缩进
+# ============================================================
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+IndentWrappedFunctionNames: false
+IndentExternBlock: NoIndent
+IndentAccessModifiers: false
+IndentCaseLabels: true
+IndentCaseBlocks: false
+IndentGotoLabels: true
+IndentPPDirectives: BeforeHash
+PPIndentWidth: -1
+
+# ============================================================
+# 访问修饰符
+# ============================================================
+AccessModifierOffset: -4
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
+
+# ============================================================
+# 对齐
+# ============================================================
+AlignAfterOpenBracket: BlockIndent
+AlignArrayOfStructures: None
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignCompound: true # 核心开关：让 +=, -= 等与 = 对齐
+  PadOperators: true # 可选：让运算符右边对齐，视觉上更整齐
+  AlignFunctionDeclarations: true
+  AlignFunctionDefinition: false
+  AlignFunctionPointers: false
+# 【改动 1】启用连续声明对齐，让返回类型 / 函数名 / 变量名按列对齐
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignFunctionDeclarations: true
+  AlignFunctionDefinition: true
+  AlignFunctionPointers: false
+  PadOperators: false
+AlignConsecutiveMacros: false
+AlignEscapedNewlines: DontAlign
+AlignOperands: false
+AlignTrailingComments: true
+
+# ============================================================
+# 单行控制
+# ============================================================
+AllowAllArgumentsOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+
+# ============================================================
+# 换行
+# ============================================================
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: true
+AlwaysBreakTemplateDeclarations: Yes
+BreakAfterAttributes: Never
+BreakArrays: false
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Custom
+BreakBeforeConceptDeclarations: Always
+BreakBeforeInlineASMColon: OnlyMultiline
+BreakBeforeTernaryOperators: true
+BreakInheritanceList: AfterColon
+BreakStringLiterals: false
+# 【改动 2】列宽限制为 200，避免数组被无限展开
+ColumnLimit: 150
+
+# ============================================================
+# 大括号包裹
+# ============================================================
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: MultiLine
+  AfterEnum: false
+  AfterExternBlock: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterObjCDeclaration: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyNamespace: false
+  SplitEmptyRecord: false
+
+# ============================================================
+# 参数打包
+# ============================================================
+BinPackArguments: true
+BinPackParameters: false
+ExperimentalAutoDetectBinPacking: false
+
+# ============================================================
+# 命名空间
+# ============================================================
+CompactNamespaces: false
+FixNamespaceComments: true
+NamespaceIndentation: None
+ShortNamespaceLines: 1
+
+# ============================================================
+# 构造函数初始化列表
+# ============================================================
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+PackConstructorInitializers: Never
+BreakConstructorInitializers: AfterColon
+
+# ============================================================
+# 花括号初始化列表
+# ============================================================
+Cpp11BracedListStyle: true
+InsertTrailingCommas: None
+
+# ============================================================
+# 指针与引用
+# ============================================================
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReferenceAlignment: Pointer
+SpaceAroundPointerQualifiers: Default
+
+# ============================================================
+# 头文件排序
+# ============================================================
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex: '^"(llvm|llvm-c|clang|clang-c)/'
+    Priority: 2
+    SortPriority: 2
+    CaseSensitive: false
+  - Regex: '^(<|"(gtest|gmock|isl|json)/)'
+    Priority: 3
+    SortPriority: 3
+    CaseSensitive: false
+  - Regex: ".*"
+    Priority: 1
+    SortPriority: 1
+    CaseSensitive: false
+IncludeIsMainRegex: "([-_](test|unittest))?$"
+IncludeIsMainSourceRegex: ""
+SortIncludes: true
+SortUsingDeclarations: true
+
+# ============================================================
+# 空格
+# ============================================================
+BitFieldColonSpacing: Both
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: false
+SpaceBeforeInheritanceColon: false
+SpaceBeforeJsonColon: false
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: false
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: -1
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# ============================================================
+# 注释
+# ============================================================
+CommentPragmas: "^ NOLINT|^ clang-format:|^ IWYU"
+ReflowComments: false
+
+# ============================================================
+# 宏
+# ============================================================
+AttributeMacros:
+  - __capability
+ForEachMacros:
+  - foreach
+  - Q_FOREACH
+  - BOOST_FOREACH
+IfMacros:
+  - KJ_IF_MAYBE
+MacroBlockBegin: ""
+MacroBlockEnd: ""
+StatementAttributeLikeMacros:
+  - Q_EMIT
+StatementMacros:
+  - Q_UNUSED
+  - QT_REQUIRE_VERSION
+WhitespaceSensitiveMacros:
+  - BOOST_PP_STRINGIZE
+  - CF_SWIFT_NAME
+  - NS_SWIFT_NAME
+  - PP_STRINGIZE
+  - STRINGIZE
+
+# ============================================================
+# 其他
+# ============================================================
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+LineEnding: LF
+InsertNewlineAtEOF: false
+RemoveBracesLLVM: false
+RemoveParentheses: Leave
+RemoveSemicolon: false
+RequiresClausePosition: OwnLine
+RequiresExpressionIndentation: OuterScope
+SeparateDefinitionBlocks: Leave
+QualifierAlignment: Leave
+QualifierOrder: []
+SortJavaStaticImport: Before
